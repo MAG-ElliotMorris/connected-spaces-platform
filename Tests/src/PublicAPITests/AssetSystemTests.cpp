@@ -1272,6 +1272,244 @@ CSP_PUBLIC_TEST(CSPEngine, AssetSystemTests, UploadAssetAsFileTest)
 }
 #endif
 
+#if RUN_ALL_UNIT_TESTS || RUN_ASSETSYSTEM_TESTS || RUN_ASSETSYSTEM_UPLOADASSET_AS_FILE_WITH_UNENCODED_SPACE_TEST
+CSP_PUBLIC_TEST(CSPEngine, AssetSystemTests, UploadAssetAsFileWithUnencodedSpaceTest)
+{
+	SetRandSeed();
+
+	auto& SystemsManager = csp::systems::SystemsManager::Get();
+	auto* UserSystem	 = SystemsManager.GetUserSystem();
+	auto* SpaceSystem	 = SystemsManager.GetSpaceSystem();
+	auto* AssetSystem	 = SystemsManager.GetAssetSystem();
+
+	const char* TestSpaceName			= "OLY-UNITTEST-SPACE-REWIND";
+	const char* TestSpaceDescription	= "OLY-UNITTEST-SPACEDESC-REWIND";
+	const char* TestAssetCollectionName = "OLY-UNITTEST-ASSETCOLLECTION-REWIND";
+	const char* TestAssetName			= "OLY-UNITTEST-ASSET-REWIND WITHSPACE";
+
+	char UniqueSpaceName[256];
+	SPRINTF(UniqueSpaceName, "%s-%s", TestSpaceName, GetUniqueString().c_str());
+
+	char UniqueAssetCollectionName[256];
+	SPRINTF(UniqueAssetCollectionName, "%s-%s", TestAssetCollectionName, GetUniqueString().c_str());
+
+	char UniqueAssetName[256];
+	SPRINTF(UniqueAssetName, "%s-%s", TestAssetName, GetUniqueString().c_str());
+
+	csp::common::String UserId;
+
+	// Log in
+	LogIn(UserSystem, UserId);
+
+	// Create space
+	csp::systems::Space Space;
+	CreateSpace(SpaceSystem, UniqueSpaceName, TestSpaceDescription, csp::systems::SpaceAttributes::Private, nullptr, nullptr, nullptr, Space);
+
+	// Create asset collection
+	csp::systems::AssetCollection AssetCollection;
+	CreateAssetCollection(AssetSystem, Space.Id, nullptr, UniqueAssetCollectionName, nullptr, nullptr, AssetCollection);
+
+	// Create asset
+	csp::systems::Asset Asset;
+	CreateAsset(AssetSystem, AssetCollection, UniqueAssetName, nullptr, nullptr, Asset);
+	auto FilePath = std::filesystem::absolute("assets/test.json");
+	csp::systems::FileAssetDataSource Source;
+	Source.FilePath							  = FilePath.u8string().c_str();
+	const csp::common::String& FileNoMimeType = "";
+	const csp::common::String& FileMimeType	  = "application/json";
+
+	printf("Uploading asset data without mime type...\n");
+
+	// Upload data
+	auto [UploadNoMimeResult] = AWAIT_PRE(AssetSystem, UploadAssetData, RequestPredicateWithProgress, AssetCollection, Asset, Source);
+
+	EXPECT_EQ(UploadNoMimeResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+	Asset.Uri = UploadNoMimeResult.GetUri();
+
+	printf("Getting asset to check for default mime type.\n");
+
+	auto [AssetNoMimeResult] = AWAIT_PRE(AssetSystem, GetAssetById, RequestPredicate, AssetCollection.Id, Asset.Id);
+
+	EXPECT_NE(AssetNoMimeResult.GetAsset().MimeType, FileNoMimeType);
+	EXPECT_EQ(AssetNoMimeResult.GetAsset().MimeType, "application/octet-stream");
+
+	// Set a mime type
+	Source.SetMimeType(FileMimeType);
+
+	printf("Uploading asset data with correct mime type...\n");
+
+	// Upload data with MimeType
+	auto [UploadResult] = AWAIT_PRE(AssetSystem, UploadAssetData, RequestPredicateWithProgress, AssetCollection, Asset, Source);
+
+	EXPECT_EQ(UploadResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+	EXPECT_EQ(UploadResult.GetFailureReason(), csp::systems::ERequestFailureReason::None);
+
+	Asset.Uri = UploadResult.GetUri();
+
+	printf("Getting asset to check for correct mime type.\n");
+
+	auto [AssetResult] = AWAIT_PRE(AssetSystem, GetAssetById, RequestPredicate, AssetCollection.Id, Asset.Id);
+
+	EXPECT_EQ(AssetResult.GetAsset().MimeType, FileMimeType);
+
+	printf("Downloading asset data...\n");
+
+	// Get data
+	auto [Result] = AWAIT_PRE(AssetSystem, DownloadAssetData, RequestPredicateWithProgress, Asset);
+
+	EXPECT_EQ(Result.GetResultCode(), csp::systems::EResultCode::Success);
+
+	size_t DownloadedAssetDataSize = Result.GetDataLength();
+	auto DownloadedAssetData	   = new uint8_t[DownloadedAssetDataSize];
+	memcpy(DownloadedAssetData, Result.GetData(), DownloadedAssetDataSize);
+
+	FILE* File		   = fopen(FilePath.string().c_str(), "rb");
+	uintmax_t FileSize = std::filesystem::file_size(FilePath);
+	auto* FileData	   = new unsigned char[FileSize];
+	fread(FileData, FileSize, 1, File);
+	fclose(File);
+
+	EXPECT_EQ(DownloadedAssetDataSize, FileSize);
+	EXPECT_EQ(memcmp(DownloadedAssetData, FileData, FileSize), 0);
+
+	delete[] FileData;
+	delete[] DownloadedAssetData;
+
+	// Delete asset
+	DeleteAsset(AssetSystem, AssetCollection, Asset);
+
+	// Delete asset collection
+	DeleteAssetCollection(AssetSystem, AssetCollection);
+
+	// Delete space
+	DeleteSpace(SpaceSystem, Space.Id);
+
+	// Log out
+	LogOut(UserSystem);
+}
+#endif
+
+#if RUN_ALL_UNIT_TESTS || RUN_ASSETSYSTEM_TESTS || RUN_ASSETSYSTEM_UPLOADASSET_AS_FILE_WITH_ENCODED_SPACE_TEST
+CSP_PUBLIC_TEST(CSPEngine, AssetSystemTests, UploadAssetAsFileWithEncodedSpaceTest)
+{
+	SetRandSeed();
+
+	auto& SystemsManager = csp::systems::SystemsManager::Get();
+	auto* UserSystem	 = SystemsManager.GetUserSystem();
+	auto* SpaceSystem	 = SystemsManager.GetSpaceSystem();
+	auto* AssetSystem	 = SystemsManager.GetAssetSystem();
+
+	const char* TestSpaceName			= "OLY-UNITTEST-SPACE-REWIND";
+	const char* TestSpaceDescription	= "OLY-UNITTEST-SPACEDESC-REWIND";
+	const char* TestAssetCollectionName = "OLY-UNITTEST-ASSETCOLLECTION-REWIND";
+	const char* TestAssetName			= "OLY-UNITTEST-ASSET-REWIND%20WITHENCODEDSPACE";
+
+	char UniqueSpaceName[256];
+	SPRINTF(UniqueSpaceName, "%s-%s", TestSpaceName, GetUniqueString().c_str());
+
+	char UniqueAssetCollectionName[256];
+	SPRINTF(UniqueAssetCollectionName, "%s-%s", TestAssetCollectionName, GetUniqueString().c_str());
+
+	char UniqueAssetName[256];
+	SPRINTF(UniqueAssetName, "%s-%s", TestAssetName, GetUniqueString().c_str());
+
+	csp::common::String UserId;
+
+	// Log in
+	LogIn(UserSystem, UserId);
+
+	// Create space
+	csp::systems::Space Space;
+	CreateSpace(SpaceSystem, UniqueSpaceName, TestSpaceDescription, csp::systems::SpaceAttributes::Private, nullptr, nullptr, nullptr, Space);
+
+	// Create asset collection
+	csp::systems::AssetCollection AssetCollection;
+	CreateAssetCollection(AssetSystem, Space.Id, nullptr, UniqueAssetCollectionName, nullptr, nullptr, AssetCollection);
+
+	// Create asset
+	csp::systems::Asset Asset;
+	CreateAsset(AssetSystem, AssetCollection, UniqueAssetName, nullptr, nullptr, Asset);
+	auto FilePath = std::filesystem::absolute("assets/test.json");
+	csp::systems::FileAssetDataSource Source;
+	Source.FilePath							  = FilePath.u8string().c_str();
+	const csp::common::String& FileNoMimeType = "";
+	const csp::common::String& FileMimeType	  = "application/json";
+
+	printf("Uploading asset data without mime type...\n");
+
+	// Upload data
+	auto [UploadNoMimeResult] = AWAIT_PRE(AssetSystem, UploadAssetData, RequestPredicateWithProgress, AssetCollection, Asset, Source);
+
+	EXPECT_EQ(UploadNoMimeResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+	Asset.Uri = UploadNoMimeResult.GetUri();
+
+	printf("Getting asset to check for default mime type.\n");
+
+	auto [AssetNoMimeResult] = AWAIT_PRE(AssetSystem, GetAssetById, RequestPredicate, AssetCollection.Id, Asset.Id);
+
+	EXPECT_NE(AssetNoMimeResult.GetAsset().MimeType, FileNoMimeType);
+	EXPECT_EQ(AssetNoMimeResult.GetAsset().MimeType, "application/octet-stream");
+
+	// Set a mime type
+	Source.SetMimeType(FileMimeType);
+
+	printf("Uploading asset data with correct mime type...\n");
+
+	// Upload data with MimeType
+	auto [UploadResult] = AWAIT_PRE(AssetSystem, UploadAssetData, RequestPredicateWithProgress, AssetCollection, Asset, Source);
+
+	EXPECT_EQ(UploadResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+	EXPECT_EQ(UploadResult.GetFailureReason(), csp::systems::ERequestFailureReason::None);
+
+	Asset.Uri = UploadResult.GetUri();
+
+	printf("Getting asset to check for correct mime type.\n");
+
+	auto [AssetResult] = AWAIT_PRE(AssetSystem, GetAssetById, RequestPredicate, AssetCollection.Id, Asset.Id);
+
+	EXPECT_EQ(AssetResult.GetAsset().MimeType, FileMimeType);
+
+	printf("Downloading asset data...\n");
+
+	// Get data
+	auto [Result] = AWAIT_PRE(AssetSystem, DownloadAssetData, RequestPredicateWithProgress, Asset);
+
+	EXPECT_EQ(Result.GetResultCode(), csp::systems::EResultCode::Success);
+
+	size_t DownloadedAssetDataSize = Result.GetDataLength();
+	auto DownloadedAssetData	   = new uint8_t[DownloadedAssetDataSize];
+	memcpy(DownloadedAssetData, Result.GetData(), DownloadedAssetDataSize);
+
+	FILE* File		   = fopen(FilePath.string().c_str(), "rb");
+	uintmax_t FileSize = std::filesystem::file_size(FilePath);
+	auto* FileData	   = new unsigned char[FileSize];
+	fread(FileData, FileSize, 1, File);
+	fclose(File);
+
+	EXPECT_EQ(DownloadedAssetDataSize, FileSize);
+	EXPECT_EQ(memcmp(DownloadedAssetData, FileData, FileSize), 0);
+
+	delete[] FileData;
+	delete[] DownloadedAssetData;
+
+	// Delete asset
+	DeleteAsset(AssetSystem, AssetCollection, Asset);
+
+	// Delete asset collection
+	DeleteAssetCollection(AssetSystem, AssetCollection);
+
+	// Delete space
+	DeleteSpace(SpaceSystem, Space.Id);
+
+	// Log out
+	LogOut(UserSystem);
+}
+#endif
+
 #if RUN_ALL_UNIT_TESTS || RUN_ASSETSYSTEM_TESTS || RUN_ASSETSYSTEM_UPLOADASSET_AS_INCORRECT_FILE_TEST
 CSP_PUBLIC_TEST(CSPEngine, AssetSystemTests, UploadAssetAsIncorrectFileTest)
 {
