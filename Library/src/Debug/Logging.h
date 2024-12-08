@@ -66,7 +66,7 @@ template <typename... Args> void LogMsg(const csp::systems::LogLevel Level, cons
 		if (csp::systems::SystemsManager::Get().GetLogSystem()->LoggingEnabled(Level))
 		{
 			char MarkerString[CSP_MAX_LOG_FORMAT_LEN];
-			csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MarkerString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
+			//csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MarkerString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
 
 			csp::systems::SystemsManager::Get().GetLogSystem()->LogMsg(Level, MarkerString);
 		}
@@ -131,7 +131,7 @@ public:
 		if (csp::CSPFoundation::GetIsInitialised())
 		{
 			char MsgString[CSP_MAX_LOG_FORMAT_LEN];
-			csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MsgString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
+			//csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MsgString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
 
 			csp::systems::SystemsManager::Get().GetLogSystem()->BeginMarker(MsgString);
 		}
@@ -166,7 +166,7 @@ template <typename... Args> void BeginMarker(const csp::common::String& FormatSt
 	if (csp::CSPFoundation::GetIsInitialised())
 	{
 		char MarkerString[CSP_MAX_LOG_FORMAT_LEN];
-		csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MarkerString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
+		//csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MarkerString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
 
 		csp::systems::SystemsManager::Get().GetLogSystem()->BeginMarker(MarkerString);
 	}
@@ -177,7 +177,7 @@ template <typename... Args> void LogEvent(const csp::common::String& FormatStr, 
 	if (csp::CSPFoundation::GetIsInitialised())
 	{
 		char MarkerString[CSP_MAX_LOG_FORMAT_LEN];
-		csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MarkerString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
+		//csp_snprintf(CSP_MAX_LOG_FORMAT_LEN, MarkerString, CSP_MAX_LOG_FORMAT_LEN - 1, FormatStr, args...);
 
 		csp::systems::SystemsManager::Get().GetLogSystem()->LogEvent(MarkerString);
 	}
