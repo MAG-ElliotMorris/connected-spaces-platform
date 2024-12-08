@@ -41,9 +41,9 @@ CSP_NO_EXPORT
 #endif
 
 #if defined(CSP_WINDOWS)
-	#define csp_snprintf(SIZE, ...) _snprintf_s<SIZE>(__VA_ARGS__)
+	#define csp_snprintf(SIZE, ...) vsnprintf<SIZE>(__VA_ARGS__)
 #else
-	#define csp_snprintf(SIZE, ...) snprintf(__VA_ARGS__)
+	#define csp_snprintf(SIZE, ...) vsnprintf(__VA_ARGS__)
 #endif
 
 // Use to suppress 'variable not used' warnings for profile or debug data
