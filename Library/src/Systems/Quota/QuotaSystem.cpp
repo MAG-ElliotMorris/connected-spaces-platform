@@ -25,8 +25,8 @@ namespace csp::systems
 {
 QuotaSystem::QuotaSystem()
     : SystemBase(nullptr, nullptr)
-    , QuotaTierAssignmentAPI(nullptr)
     , QuotaManagementAPI(nullptr)
+    , QuotaTierAssignmentAPI(nullptr)
     , QuotaActivityAPI(nullptr)
 {
 }

@@ -673,8 +673,8 @@ void ProductInfoCollectionResult::OnResponse(const csp::services::ApiResponseBas
         std::vector<chs_aggregation::ShopifyProductDto>& ProductsArray = ProductCollectionResponse->GetArray();
 
         // Loop through products to count the variants, we want 1 output product per variant
-        size_t VariantCount = 0;
-        for (size_t DtoCount = 0; DtoCount < ProductsArray.size(); DtoCount++)
+        int VariantCount = 0;
+        for (int DtoCount = 0; DtoCount < ProductsArray.size(); DtoCount++)
         {
             VariantCount += ProductsArray[DtoCount].GetVariants().size();
         }

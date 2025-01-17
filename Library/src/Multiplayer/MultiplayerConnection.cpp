@@ -108,7 +108,7 @@ ErrorCode ParseError(std::exception_ptr Exception)
     return ErrorCode::Unknown;
 }
 
-constexpr const uint64_t ALL_ENTITIES_ID = std::numeric_limits<uint64_t>::max();
+constexpr const uint64_t ALL_ENTITIES_ID = -1;
 constexpr const uint32_t KEEP_ALIVE_INTERVAL = 15;
 
 /// @brief MultiplayerConnection
@@ -327,7 +327,7 @@ void MultiplayerConnection::InternalDeleteEntity(uint64_t EntityId, ErrorCodeCal
         return;
     }
 
-    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [Callback](signalr::value Result, std::exception_ptr Except)
+    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [this, Callback](signalr::value Result, std::exception_ptr Except)
     {
         if (Except != nullptr)
         {
@@ -405,7 +405,7 @@ void MultiplayerConnection::SetScopes(csp::common::String InSpaceId, ErrorCodeCa
         return;
     }
 
-    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [Callback](signalr::value Result, std::exception_ptr Except)
+    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [this, Callback](signalr::value Result, std::exception_ptr Except)
     {
         if (Except != nullptr)
         {
@@ -439,7 +439,7 @@ void MultiplayerConnection::ResetScopes(ErrorCodeCallbackHandler Callback)
         return;
     }
 
-    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [Callback](signalr::value Result, std::exception_ptr Except)
+    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [this, Callback](signalr::value Result, std::exception_ptr Except)
     {
         if (Except != nullptr)
         {
@@ -466,7 +466,7 @@ void MultiplayerConnection::StartListening(ErrorCodeCallbackHandler Callback)
         return;
     }
 
-    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [Callback, this](signalr::value Result, std::exception_ptr Except)
+    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [this, Callback](signalr::value Result, std::exception_ptr Except)
     {
         if (Except != nullptr)
         {
@@ -476,7 +476,6 @@ void MultiplayerConnection::StartListening(ErrorCodeCallbackHandler Callback)
             return;
         }
 
-        INVOKE_IF_NOT_NULL(ConnectionCallback, "Success");
         INVOKE_IF_NOT_NULL(Callback, ErrorCode::None);
     };
 
@@ -494,7 +493,7 @@ void MultiplayerConnection::StopListening(ErrorCodeCallbackHandler Callback)
         return;
     }
 
-    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [Callback](signalr::value Result, std::exception_ptr Except)
+    std::function<void(signalr::value, std::exception_ptr)> LocalCallback = [this, Callback](signalr::value Result, std::exception_ptr Except)
     {
         if (Except != nullptr)
         {

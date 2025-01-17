@@ -24,17 +24,23 @@ namespace csp::systems
 {
 
 Material::Material(const csp::common::String& Name, const csp::common::String& InAssetCollectionId, const csp::common::String& InAssetId)
-    : Name(Name)
-    , Type(EShaderType::Standard)
-    , CollectionId(InAssetCollectionId)
-    , Id(InAssetId)
+	: Name(Name), CollectionId(InAssetCollectionId), Id(InAssetId), Type(EShaderType::Standard)
 {
 }
 
-const csp::common::String& Material::GetName() const { return Name; }
+const csp::common::String& Material::GetName() const
+{
+	return Name;
+}
 
-const csp::common::String& Material::GetMaterialCollectionId() const { return CollectionId; }
+const csp::common::String& Material::GetMaterialCollectionId() const
+{
+	return CollectionId;
+}
 
-const csp::common::String& Material::GetMaterialId() const { return Id; }
+const csp::common::String& Material::GetMaterialId() const
+{
+	return Id;
+}
 
 } // namespace csp::systems

@@ -162,7 +162,7 @@ public:
 
     EntityScriptInterface* GetEntityById(int64_t EntityId)
     {
-        EntityScriptInterface* ScriptInterface = nullptr;
+        EntityScriptInterface* ScriptInterface;
         if (EntitySystem)
         {
             EntitySystem->LockEntityUpdate();
@@ -185,7 +185,7 @@ public:
 
     EntityScriptInterface* GetEntityByName(std::string EntityName)
     {
-        EntityScriptInterface* ScriptInterface = nullptr;
+        EntityScriptInterface* ScriptInterface;
         if (EntitySystem)
         {
             EntitySystem->LockEntityUpdate();

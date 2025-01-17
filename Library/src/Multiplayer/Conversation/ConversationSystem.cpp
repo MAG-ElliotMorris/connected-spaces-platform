@@ -34,8 +34,8 @@ namespace csp::multiplayer
 {
 
 ConversationSystem::ConversationSystem(MultiplayerConnection* Connection)
-    : SystemBase(Connection->EventBusPtr)
-    , Connection(nullptr)
+    : Connection(nullptr)
+    , SystemBase(Connection->EventBusPtr)
 {
     RegisterSystemCallback();
 }

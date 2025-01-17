@@ -81,12 +81,20 @@ void LogSystem::LogMsg(const csp::systems::LogLevel Level, const csp::common::St
     else
     {
 #if defined(CSP_WASM)
-        printf("%s\n", InMessage.c_str());
+    printf("%s\n", InMessage.c_str());
 #endif
 
 #if defined(CSP_ANDROID)
-        __android_log_print(ANDROID_LOG_VERBOSE, "CSP", InMessage.c_str());
+    __android_log_print(ANDROID_LOG_VERBOSE, "CSP", InMessage.c_str());
 #endif
+
+    // Log to our Connected Spaces Platform file system.
+    LogToFile(InMessage);
+
+    if (Callbacks->LogCallback != nullptr)
+    {
+        // Send message to clients to display the log on the client side.
+        Callbacks->LogCallback(InMessage);
     }
 }
 
