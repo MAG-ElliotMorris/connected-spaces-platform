@@ -98,9 +98,6 @@ namespace
 
             break;
         }
-        case ReplicatedValueType::InvalidType:
-            CSP_LOG_ERROR_MSG("Received Invalid Type as SignalR Replicated Value");
-            return std::make_pair(ValueType, signalr::value {});
         }
 
         return std::make_pair(ValueType, NewValue);
@@ -245,6 +242,30 @@ void SignalRMsgPackEntitySerialiser::WriteString(const csp::common::String& Valu
     assert(CurrentState == SerialiserState::InEntity && "WriteString() function not supported in current state!");
 
     Fields.push_back(signalr::value(Value));
+}
+
+void SignalRMsgPackEntitySerialiser::WriteVector2(const csp::common::Vector2& Value)
+{
+    assert(CurrentState == SerialiserState::InEntity && "WriteVector2() function not supported in current state!");
+
+    double ArrayValue[] = { Value.X, Value.Y };
+    Fields.push_back(signalr::value(ArrayValue));
+}
+
+void SignalRMsgPackEntitySerialiser::WriteVector3(const csp::common::Vector3& Value)
+{
+    assert(CurrentState == SerialiserState::InEntity && "WriteVector3() function not supported in current state!");
+
+    double ArrayValue[] = { Value.X, Value.Y, Value.Z };
+    Fields.push_back(signalr::value(ArrayValue));
+}
+
+void SignalRMsgPackEntitySerialiser::WriteVector4(const csp::common::Vector4& Value)
+{
+    assert(CurrentState == SerialiserState::InEntity && "WriteVector4() function not supported in current state!");
+
+    double ArrayValue[] = { Value.X, Value.Y, Value.Z, Value.W };
+    Fields.push_back(signalr::value(ArrayValue));
 }
 
 void SignalRMsgPackEntitySerialiser::WriteNull()
@@ -419,12 +440,12 @@ void SignalRMsgPackEntitySerialiser::AddViewComponent(uint16_t Id, const Replica
 signalr::value SignalRMsgPackEntitySerialiser::Finalise() { return signalr::value(Fields); }
 
 SignalRMsgPackEntityDeserialiser::SignalRMsgPackEntityDeserialiser(const signalr::value& Object)
-    : Object(&Object)
-    , CurrentState(SerialiserState::Initial)
+    : CurrentState(SerialiserState::Initial)
+    , Object(&Object)
     , Fields(nullptr)
-    , CurrentArray(nullptr)
     , Components(nullptr)
     , ComponentPropertyCount(0)
+    , CurrentArray(nullptr)
 {
 }
 

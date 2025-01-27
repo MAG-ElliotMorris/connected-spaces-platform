@@ -85,6 +85,9 @@ void OrganizationRoleDtoToOrganizationRole(const chs_users::OrganizationMember& 
     }
 }
 
+// todo: Implement once CHS have finished implementing the Organization endpoints to the User Service.
+void OrganizationInviteDtoToOrganizationRoleInfo() { }
+
 } // namespace
 
 namespace csp::systems

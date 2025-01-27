@@ -120,11 +120,7 @@ EmscriptenWebClient::EmscriptenWebClient(const Port InPort, const ETransferProto
     std::srand(std::time(nullptr));
 }
 
-std::string EmscriptenWebClient::MD5Hash(const void* Data, const size_t Size)
-{
-    assert(false && "Not implemented!");
-    return "MD5Hash Not Implemented";
-}
+std::string EmscriptenWebClient::MD5Hash(const void* Data, const size_t Size) { assert(false && "Not implemented!"); }
 
 void EmscriptenWebClient::SetFileUploadContentFromFile(
     HttpPayload* Payload, const char* FilePath, const char* Version, const csp::common::String& MediaType)

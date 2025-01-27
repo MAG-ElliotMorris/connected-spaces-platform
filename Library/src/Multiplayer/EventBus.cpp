@@ -22,14 +22,13 @@
 #include "Multiplayer/EventSerialisation.h"
 #include "Multiplayer/SignalR/SignalRConnection.h"
 #include "NetworkEventManagerImpl.h"
-#include <limits>
 
 namespace csp::multiplayer
 {
 
 extern ErrorCode ParseError(std::exception_ptr Exception);
 
-constexpr const uint64_t ALL_CLIENTS_ID = std::numeric_limits<uint64_t>::max();
+constexpr const uint64_t ALL_CLIENTS_ID = -1;
 
 EventBus::~EventBus() { }
 
@@ -42,10 +41,17 @@ EventBus::EventBus(MultiplayerConnection* InMultiplayerConnection)
 
 void EventBus::ListenNetworkEvent(const csp::common::String& EventName, csp::systems::SystemBase* System)
 {
+    if (MultiplayerConnectionInst->Connection == nullptr || !MultiplayerConnectionInst->Connected)
+    {
+        std::string ErrorMessage = "Error: Multiplayer connection is not available.";
+        CSP_LOG_ERROR_FORMAT("%s\n", ErrorMessage.c_str());
+        return;
+    }
+
     if (!System)
     {
         std::string ErrorMessage = "Error: Expected non-null system.";
-        CSP_LOG_ERROR_FORMAT("%s", ErrorMessage.c_str());
+        CSP_LOG_ERROR_FORMAT("%s\n", ErrorMessage.c_str());
         return;
     }
 
@@ -53,7 +59,7 @@ void EventBus::ListenNetworkEvent(const csp::common::String& EventName, csp::sys
     {
         if (CallbacksNetworkEventMap[EventName])
         {
-            CSP_LOG_ERROR_FORMAT("Error: there is already a callback registered for %s.", EventName.c_str());
+            CSP_LOG_ERROR_FORMAT("Error: there is already a callback registered for %s.\n", EventName.c_str());
             return;
         }
     }
@@ -61,14 +67,7 @@ void EventBus::ListenNetworkEvent(const csp::common::String& EventName, csp::sys
     if (!SystemsNetworkEventMap.empty() && SystemsNetworkEventMap.find(EventName) != SystemsNetworkEventMap.end()
         && SystemsNetworkEventMap[EventName])
     {
-        if (SystemsNetworkEventMap[EventName] != System)
-        {
-            CSP_LOG_ERROR_FORMAT("Error: there is already a system registered for %s. Deregister it first.", EventName.c_str());
-        }
-        else
-        {
-            CSP_LOG_FORMAT(csp::systems::LogLevel::VeryVerbose, "This system is already registered for %s.", EventName.c_str());
-        }
+        CSP_LOG_ERROR_FORMAT("Error: there is already a system registered for %s.\n", EventName.c_str());
         return;
     }
 
@@ -77,18 +76,17 @@ void EventBus::ListenNetworkEvent(const csp::common::String& EventName, csp::sys
 
 void EventBus::ListenNetworkEvent(const csp::common::String& EventName, ParameterisedCallbackHandler Callback)
 {
-    if (!Callback)
+    if (MultiplayerConnectionInst->Connection == nullptr || !MultiplayerConnectionInst->Connected)
     {
-        std::string ErrorMessage = "Error: Expected non-null callback.";
-        CSP_LOG_ERROR_FORMAT("%s", ErrorMessage.c_str());
+        std::string ErrorMessage = "Error: Multiplayer connection is not available.";
+        CSP_LOG_ERROR_FORMAT("%s\n", ErrorMessage.c_str());
         return;
     }
 
-    if (!SystemsNetworkEventMap.empty() && SystemsNetworkEventMap.find(EventName) != SystemsNetworkEventMap.end()
-        && SystemsNetworkEventMap[EventName])
+    if (!Callback)
     {
-        CSP_LOG_ERROR_FORMAT(
-            "Error: there is already a system registered for %s. Deregister the system before registering a callback.", EventName.c_str());
+        std::string ErrorMessage = "Error: Expected non-null callback.";
+        CSP_LOG_ERROR_FORMAT("%s\n", ErrorMessage.c_str());
         return;
     }
 
@@ -96,9 +94,16 @@ void EventBus::ListenNetworkEvent(const csp::common::String& EventName, Paramete
     {
         if (CallbacksNetworkEventMap[EventName])
         {
-            // We cannot compare callbacks, so we can't know whether it is the same callback that is already set. Therefore, we always update it
-            CSP_LOG_FORMAT(csp::systems::LogLevel::VeryVerbose, "The callback set for %s was overwritten with a new callback.", EventName.c_str());
+            CSP_LOG_ERROR_FORMAT("Error: there is already a callback registered for %s.\n", EventName.c_str());
+            return;
         }
+    }
+
+    if (!SystemsNetworkEventMap.empty() && SystemsNetworkEventMap.find(EventName) != SystemsNetworkEventMap.end()
+        && SystemsNetworkEventMap[EventName])
+    {
+        CSP_LOG_ERROR_FORMAT("Error: there is already a system registered for %s.\n", EventName.c_str());
+        return;
     }
 
     CallbacksNetworkEventMap[EventName] = Callback;
@@ -120,23 +125,17 @@ void EventBus::StopListenNetworkEvent(const csp::common::String& EventName)
 
 void EventBus::StartEventMessageListening()
 {
-    if (MultiplayerConnectionInst->Connection == nullptr)
-    {
-        CSP_LOG_ERROR_MSG("Error : Multiplayer connection is unavailable, EventBus cannot start listening to events.");
-        return;
-    }
-
     std::function<void(signalr::value)> LocalCallback = [this](signalr::value Result)
     {
         if (Result.is_null())
         {
-            CSP_LOG_MSG(csp::systems::LogLevel::VeryVerbose, "Event values were empty.");
+            CSP_LOG_MSG(csp::systems::LogLevel::Log, "Event values were empty.\n");
             return;
         }
 
         if (CallbacksNetworkEventMap.empty() && SystemsNetworkEventMap.empty())
         {
-            CSP_LOG_MSG(csp::systems::LogLevel::VeryVerbose, "Event map was empty.");
+            CSP_LOG_MSG(csp::systems::LogLevel::Log, "Event map was empty.\n");
             return;
         }
 
@@ -146,7 +145,7 @@ void EventBus::StartEventMessageListening()
         if (CallbacksNetworkEventMap.find(EventType) == CallbacksNetworkEventMap.end()
             && SystemsNetworkEventMap.find(EventType) == SystemsNetworkEventMap.end())
         {
-            CSP_LOG_FORMAT(csp::systems::LogLevel::VeryVerbose, "Event %s is no longer registered to, discarding...", EventType.c_str());
+            CSP_LOG_MSG(csp::systems::LogLevel::Log, "Event was not found in event map.\n");
             return;
         }
 

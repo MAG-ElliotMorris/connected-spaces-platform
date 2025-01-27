@@ -115,9 +115,13 @@ private:
     ClientId HighestResponseId;
     EventId Eid;
 
+    ElectionEvent PendingEvent;
+
     std::atomic_int PendingElections;
 
     std::chrono::system_clock::time_point ElectionStartTime;
+
+    csp::common::CancellationToken* CancellationToken;
 };
 
 } // namespace csp::multiplayer
