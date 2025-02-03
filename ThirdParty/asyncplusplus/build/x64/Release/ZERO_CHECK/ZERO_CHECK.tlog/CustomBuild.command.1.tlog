@@ -1,0 +1,10 @@
+^C:\DEV\CONNECTED-SPACES-PLATFORM\THIRDPARTY\ASYNCPLUSPLUS\BUILD\CMAKEFILES\AF77738299DF945AEE5BF210DA6C161F\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/connected-spaces-platform/ThirdParty/asyncplusplus -BC:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build/Async++.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

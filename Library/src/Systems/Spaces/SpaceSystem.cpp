@@ -35,7 +35,9 @@
 #include "Systems/Spaces/SpaceSystemHelpers.h"
 #include "Systems/Spatial/PointOfInterestInternalSystem.h"
 
+#include <async++.h>
 #include <iostream>
+#include <optional>
 #include <rapidjson/rapidjson.h>
 
 using namespace csp;
@@ -87,222 +89,210 @@ SpaceSystem::SpaceSystem(csp::web::WebClient* InWebClient)
 
 SpaceSystem::~SpaceSystem() { CSP_DELETE(GroupAPI); }
 
+void SpaceSystem::RefreshMultiplayerConnectionToEnactScopeChange(
+    const String& SpaceId, async::event_task<std::optional<csp::multiplayer::ErrorCode>>& RefreshMultiplayerContinuationEvent)
+{
+
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
+    SystemsManager.GetSpaceEntitySystem()->Initialise();
+    auto* MultiplayerConnection = SystemsManager.GetMultiplayerConnection();
+
+    // Unfortunately we have to stop listening in order for our scope change to take effect, then start again once done.
+    // This hopefully will change in a future version when CHS support it.
+    MultiplayerConnection->StopListening(
+        [this, MultiplayerConnection, SpaceId, &RefreshMultiplayerContinuationEvent](csp::multiplayer::ErrorCode Error)
+        {
+            if (Error != csp::multiplayer::ErrorCode::None)
+            {
+                RefreshMultiplayerContinuationEvent.set(Error);
+                return;
+            }
+
+            CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StopListening success");
+
+            MultiplayerConnection->SetScopes(SpaceId,
+                [this, MultiplayerConnection, &RefreshMultiplayerContinuationEvent](csp::multiplayer::ErrorCode Error)
+                {
+                    if (Error != csp::multiplayer::ErrorCode::None)
+                    {
+                        RefreshMultiplayerContinuationEvent.set(Error);
+                        return;
+                    }
+                    else
+                    {
+                        CSP_LOG_MSG(csp::systems::LogLevel::Verbose, "SetScopes was called successfully");
+                    }
+
+                    MultiplayerConnection->StartListening(
+                        [this, &RefreshMultiplayerContinuationEvent](csp::multiplayer::ErrorCode Error)
+                        {
+                            if (Error != csp::multiplayer::ErrorCode::None)
+                            {
+                                RefreshMultiplayerContinuationEvent.set(Error);
+                                return;
+                            }
+
+                            CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StartListening success");
+
+                            // TODO: Support getting errors from RetrieveAllEntities
+                            csp::systems::SystemsManager::Get().GetSpaceEntitySystem()->RetrieveAllEntities();
+
+                            // Success!
+                            RefreshMultiplayerContinuationEvent.set({});
+                        });
+                });
+        });
+}
+
+namespace
+{
+    using namespace std::chrono_literals;
+    constexpr auto PROMISE_TIMEOUT = 20s;
+    constexpr auto TIMEOUT_HTTP_CODE = 408;
+    constexpr auto BAD_PERMISSIONS_HTTP_CODE = 403;
+
+    // A generic error meaning entering the space has failed. Used in `EnterSpace`
+    void EmitFailToJoinSpaceError(NullResultCallback& Callback, std::string Error, EResultCode ResultCode, uint16_t HttpResultCode,
+        ERequestFailureReason FailureReason, csp::systems::LogLevel LogLevel = csp::systems::LogLevel::Log)
+    {
+        CSP_LOG_MSG(LogLevel, Error.c_str());
+        NullResult FailureResult(ResultCode, HttpResultCode, FailureReason);
+        INVOKE_IF_NOT_NULL(Callback, FailureResult);
+    }
+
+}
+
 void SpaceSystem::EnterSpace(const String& SpaceId, NullResultCallback Callback)
 {
     CSP_LOG_MSG(csp::systems::LogLevel::Log, "SpaceSystem::EnterSpace");
 
-    SpaceResultCallback GetSpaceCallback = [Callback, SpaceId, this](const SpaceResult& GetSpaceResult)
-    {
-        if (GetSpaceResult.GetResultCode() == EResultCode::InProgress)
+    /* First, query the space to see if we can discover it. Joining comes after, we may not even have permissions to discover */
+
+    // Starts the enter space continuation flow. Called from GetSpaceCallback
+    async::event_task<SpaceResult> EnterSpaceChainStartEvent;
+    auto EnterSpaceChainContinuation = EnterSpaceChainStartEvent.get_task();
+    // Because we fall out of scope and allow the continuations to keep the callback chain going (because we can't lock cause of WASM),
+    // then we need to declare any events outside of the continuation flow, for lifetime reasons
+    async::event_task<SpaceResult> UserAddedToSpaceChainStartEvent;
+    async::event_task<std::optional<csp::multiplayer::ErrorCode>> RefreshMultiplayerConnectionEvent;
+
+    GetSpace(SpaceId,
+        [StartEvent = std::move(EnterSpaceChainStartEvent)](const SpaceResult& GetSpaceResult)
         {
-            return;
-        }
+            switch (GetSpaceResult.GetResultCode())
+            {
+            case EResultCode::Init:
+            case EResultCode::InProgress:
+                // Do nothing, expect another callback
+                return;
+            case EResultCode::Failed: // Do not have permission to view space, it's non-discoverable to this user
+            case EResultCode::Success: // User can discover this space, not neccesarily join it, that comes later
+                StartEvent.set(GetSpaceResult);
+            }
+        });
 
-        if (GetSpaceResult.GetResultCode() == EResultCode::Failed)
+    EnterSpaceChainContinuation.then(
+        [&Callback, &UserAddedToSpaceChainStartEvent, &RefreshMultiplayerConnectionEvent, this](const SpaceResult& GetSpaceResult)
         {
-            CSP_LOG_MSG(csp::systems::LogLevel::Log, "SpaceSystem::EnterSpace fail");
-            NullResult InternalResult(GetSpaceResult.GetResultCode(), GetSpaceResult.GetHttpResultCode());
-            INVOKE_IF_NOT_NULL(Callback, InternalResult);
+            /* Error out if the user does not have permission to discover this space */
+            if (GetSpaceResult.GetResultCode() != EResultCode::Success)
+            {
+                // Do not have permission to view space, it's non-discoverable to this user
+                EmitFailToJoinSpaceError(Callback, "Logged in user does not have permission to discover this space. Failed to enter space.",
+                    EResultCode::Failed, BAD_PERMISSIONS_HTTP_CODE, ERequestFailureReason::UserSpaceAccessDenied);
+                throw std::runtime_error("EnterSpace continuation cancelled.");
+            }
 
-            return;
-        }
+            CSP_LOG_MSG(csp::systems::LogLevel::Log, "SpaceSystem::EnterSpace, succesfully discovered space.");
 
-        CSP_LOG_MSG(csp::systems::LogLevel::Log, "SpaceSystem::EnterSpace success");
+            /* Once we have permissions to discover a space, attempt to enter it */
+            const auto& SpaceToJoin = GetSpaceResult.GetSpace();
 
-        const auto& RefreshedSpace = GetSpaceResult.GetSpace();
+            CSP_LOG_FORMAT(LogLevel::Log, "Attempting to Enter Space %s %s", SpaceToJoin.Name.c_str(), SpaceToJoin.Id.c_str());
 
-        CSP_LOG_FORMAT(LogLevel::Log, "Entering Space %s %s", RefreshedSpace.Name.c_str(), RefreshedSpace.Id.c_str());
+            const String UserId = SystemsManager::Get().GetUserSystem()->GetLoginState().UserId;
+            const bool JoiningSpaceRequiresInvite = HasFlag(SpaceToJoin.Attributes, SpaceAttributes::RequiresInvite);
 
-        const String UserId = SystemsManager::Get().GetUserSystem()->GetLoginState().UserId;
+            // The user is known to the space if they are a user, moderator or creator. This is important if the space requires an invite.
+            const bool UserIsRecognizedBySpace = SpaceToJoin.UserIsKnownToSpace(UserId);
 
-        if (!HasFlag(RefreshedSpace.Attributes, SpaceAttributes::RequiresInvite))
-        {
-            CSP_LOG_MSG(csp::systems::LogLevel::Log, "!HasFlag");
+            /* If we need permissions, check that the user has permission to enter this specific space */
+            if (JoiningSpaceRequiresInvite && !UserIsRecognizedBySpace)
+            {
+                // The space requires an invite, and the user dosen't have one.
+                EmitFailToJoinSpaceError(Callback, "Logged in user does not have permission to join this space. Failed to enter space.",
+                    EResultCode::Failed, BAD_PERMISSIONS_HTTP_CODE, ERequestFailureReason::UserSpaceAccessDenied);
+                throw std::runtime_error("EnterSpace continuation cancelled.");
+            }
 
-            AddUserToSpace(SpaceId, UserId,
-                [Callback, SpaceId, GetSpaceResult, RefreshedSpace, this](const SpaceResult& Result)
+            /* By this point,you should be allowed to join the space
+               Add the user to the space even if they are already added */
+
+            AddUserToSpace(SpaceToJoin.Id, UserId,
+                [&SpaceToJoin, &Callback, &UserAddedToSpaceChainStartEvent](const SpaceResult& AddUserToSpaceResult)
                 {
-                    if (Result.GetResultCode() == EResultCode::InProgress)
+                    // In theory here, the user should be able to join this space, but be defensive
+                    switch (AddUserToSpaceResult.GetResultCode())
                     {
+                    case EResultCode::Init:
+                    case EResultCode::InProgress:
+                        // Do nothing, expect another callback
                         return;
+                    case EResultCode::Failed: // Failed to join space for an unexpected reason
+                    case EResultCode::Success: // Sucessfully added to space, continue on
+                        UserAddedToSpaceChainStartEvent.set(AddUserToSpaceResult);
                     }
+                });
 
-                    CSP_LOG_MSG(csp::systems::LogLevel::Log, "AddUserToSpace");
-
-                    NullResult InternalResult(Result.GetResultCode(), Result.GetHttpResultCode());
-
-                    if (Result.GetResultCode() == EResultCode::Success)
+            // EnterSpace flow picks up here, with the user being added to the space
+            auto UserAddedToSpaceChainContinuation = UserAddedToSpaceChainStartEvent.get_task();
+            UserAddedToSpaceChainContinuation.then(
+                [&Callback, this, &RefreshMultiplayerConnectionEvent](const SpaceResult& AddUserToSpaceResult)
+                {
+                    /* Error if the user failed to be added to the space */
+                    if (AddUserToSpaceResult.GetResultCode() != EResultCode::Success)
                     {
-                        CSP_LOG_MSG(csp::systems::LogLevel::Log, "AddUserToSpace success");
-                        CurrentSpace = RefreshedSpace;
-
-                        csp::events::Event* EnterSpaceEvent
-                            = csp::events::EventSystem::Get().AllocateEvent(csp::events::SPACESYSTEM_ENTER_SPACE_EVENT_ID);
-                        EnterSpaceEvent->AddString("SpaceId", SpaceId);
-                        csp::events::EventSystem::Get().EnqueueEvent(EnterSpaceEvent);
-                    }
-                    else
-                    {
-                        CSP_LOG_MSG(csp::systems::LogLevel::Log, "AddUserToSpace fail!!!!");
+                        EmitFailToJoinSpaceError(Callback, "Failed to Enter Space. AddUserToSpace returned unexpected failure.",
+                            AddUserToSpaceResult.GetResultCode(), AddUserToSpaceResult.GetHttpResultCode(), AddUserToSpaceResult.GetFailureReason(),
+                            csp::systems::LogLevel::Error);
+                        throw std::runtime_error("AddUserToSpace continuation cancelled.");
                     }
 
-                    auto& SystemsManager = csp::systems::SystemsManager::Get();
-                    SystemsManager.GetSpaceEntitySystem()->Initialise();
-                    auto* MultiplayerConnection = SystemsManager.GetMultiplayerConnection();
+                    /* We're here. The space knows about us. We're definately in the allowed users. Let's join! */
+                    csp::events::Event* EnterSpaceEvent
+                        = csp::events::EventSystem::Get().AllocateEvent(csp::events::SPACESYSTEM_ENTER_SPACE_EVENT_ID);
+                    EnterSpaceEvent->AddString("SpaceId", AddUserToSpaceResult.GetSpace().Id);
+                    csp::events::EventSystem::Get().EnqueueEvent(EnterSpaceEvent);
+                    CurrentSpace = AddUserToSpaceResult.GetSpace(); // TEMP, do it at the actual end
 
-                    // Unfortunately we have to stop listening in order for our scope change to take effect, then start again once done.
-                    // This hopefully will change in a future version when CHS support it.
-                    MultiplayerConnection->StopListening(
-                        [this, MultiplayerConnection, SpaceId, InternalResult, Callback](csp::multiplayer::ErrorCode Error)
+                    /* Refresh the multiplayer connection to force the scopes to change */
+                    RefreshMultiplayerConnectionToEnactScopeChange(AddUserToSpaceResult.GetSpace().Id, RefreshMultiplayerConnectionEvent);
+
+                    auto RefreshMultiplayerConnectionContinuation = RefreshMultiplayerConnectionEvent.get_task();
+                    RefreshMultiplayerConnectionContinuation.then(
+                        [&Callback, this](const std::optional<csp::multiplayer::ErrorCode>& RefreshMultiplayerError)
                         {
-                            if (Error != csp::multiplayer::ErrorCode::None)
+                            /* Finished attempting to refresh multiplayer connection. Handle success or failure */
+                            // Error out if the refresh provided us with an error message, an empty optional however means things went as expected
+                            if (RefreshMultiplayerError.has_value())
                             {
-                                CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StopListening error");
-                                CSP_LOG_ERROR_FORMAT("Error stopping listening in order to set scopes, ErrorCode: %s",
-                                    csp::multiplayer::ErrorCodeToString(Error).c_str());
-                                INVOKE_IF_NOT_NULL(Callback, MakeInvalid<NullResult>());
+                                // We have an error message, we unexpectedly failed to refresh the multiplayer connection
+                                EmitFailToJoinSpaceError(Callback,
+                                    std::string("Refresh multiplayer connection unexpectedly failed with error: "
+                                        + ErrorCodeToString(RefreshMultiplayerError.value())),
+                                    EResultCode::Failed, 500, ERequestFailureReason::Unknown, csp::systems::LogLevel::Error);
+                                CurrentSpace
+                                    = {}; // Unset currentspace, since we didn't actually join. TODO: Consider other state-reset edge cases here)
                                 return;
                             }
 
-                            CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StopListening success");
-
-                            MultiplayerConnection->SetScopes(SpaceId,
-                                [this, MultiplayerConnection, InternalResult, Callback](csp::multiplayer::ErrorCode Error)
-                                {
-                                    if (Error != csp::multiplayer::ErrorCode::None)
-                                    {
-                                        CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->SetScopes error");
-                                        CSP_LOG_ERROR_FORMAT(
-                                            "Error setting scopes, ErrorCode: %s", csp::multiplayer::ErrorCodeToString(Error).c_str());
-                                        INVOKE_IF_NOT_NULL(Callback, MakeInvalid<NullResult>());
-                                        return;
-                                    }
-                                    else
-                                    {
-                                        CSP_LOG_MSG(csp::systems::LogLevel::Verbose, "SetScopes was called successfully");
-                                    }
-
-                                    MultiplayerConnection->StartListening(
-                                        [this, InternalResult, Callback](csp::multiplayer::ErrorCode Error)
-                                        {
-                                            if (Error != csp::multiplayer::ErrorCode::None)
-                                            {
-                                                CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StartListening fail");
-                                                CSP_LOG_ERROR_FORMAT("Error starting listening in order to set scopes, ErrorCode: %s",
-                                                    csp::multiplayer::ErrorCodeToString(Error).c_str());
-                                                INVOKE_IF_NOT_NULL(Callback, MakeInvalid<NullResult>());
-                                                return;
-                                            }
-
-                                            CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StartListening success");
-
-                                            // TODO: Support getting errors from RetrieveAllEntities
-                                            csp::systems::SystemsManager::Get().GetSpaceEntitySystem()->RetrieveAllEntities();
-
-                                            INVOKE_IF_NOT_NULL(Callback, InternalResult);
-                                        });
-                                });
+                            /* We joined the space and refreshed the multiplayer connection to change scopes. We're done! */
+                            CSP_LOG_MSG(LogLevel::Log, "EnterSpace Success");
+                            NullResult SuccessResult(EResultCode::Success, 200, ERequestFailureReason::None);
+                            INVOKE_IF_NOT_NULL(Callback, SuccessResult);
                         });
                 });
-        }
-        else
-        {
-            // First check if the user is the owner
-            bool EnterSuccess = RefreshedSpace.OwnerId == UserId;
-
-            CSP_LOG_MSG(csp::systems::LogLevel::Log, " EnterSuccess:");
-            CSP_LOG_MSG(csp::systems::LogLevel::Log, std::to_string(EnterSuccess).c_str());
-
-            // If the user is not the owner check are they a moderator
-            if (!EnterSuccess)
-            {
-                EnterSuccess = systems::SpaceSystemHelpers::IdCheck(UserId, RefreshedSpace.ModeratorIds);
-
-                CSP_LOG_MSG(csp::systems::LogLevel::Log, "ModeratorIds: fail");
-            }
-
-            // Finally check all users in the group
-            if (!EnterSuccess)
-            {
-                EnterSuccess = systems::SpaceSystemHelpers::IdCheck(UserId, RefreshedSpace.UserIds);
-                CSP_LOG_MSG(csp::systems::LogLevel::Log, "UserIds: fail");
-            }
-
-            NullResult InternalResult(GetSpaceResult.GetResultCode(), GetSpaceResult.GetHttpResultCode());
-
-            if (EnterSuccess)
-            {
-                CurrentSpace = GetSpaceResult.GetSpace();
-                csp::events::Event* EnterSpaceEvent = csp::events::EventSystem::Get().AllocateEvent(csp::events::SPACESYSTEM_ENTER_SPACE_EVENT_ID);
-                EnterSpaceEvent->AddString("SpaceId", SpaceId);
-                csp::events::EventSystem::Get().EnqueueEvent(EnterSpaceEvent);
-            }
-            else
-            {
-                CSP_LOG_MSG(csp::systems::LogLevel::Log, "EnterSuccess fail");
-            }
-
-            auto* MultiplayerConnection = csp::systems::SystemsManager::Get().GetMultiplayerConnection();
-
-            // Unfortunately we have to stop listening in order for our scope change to take effect, then start again once done.
-            // This hopefully will change in a future version when CHS support it.
-            MultiplayerConnection->StopListening(
-                [this, MultiplayerConnection, SpaceId, InternalResult, Callback](csp::multiplayer::ErrorCode Error)
-                {
-                    if (Error != csp::multiplayer::ErrorCode::None)
-                    {
-                        CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StopListening2 error");
-                        CSP_LOG_ERROR_FORMAT(
-                            "Error stopping listening in order to set scopes, ErrorCode: %s", csp::multiplayer::ErrorCodeToString(Error).c_str());
-                        INVOKE_IF_NOT_NULL(Callback, MakeInvalid<NullResult>());
-                        return;
-                    }
-
-                    CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StopListening2 success");
-
-                    MultiplayerConnection->SetScopes(SpaceId,
-                        [this, MultiplayerConnection, InternalResult, Callback](csp::multiplayer::ErrorCode Error)
-                        {
-                            if (Error != csp::multiplayer::ErrorCode::None)
-                            {
-                                CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->SetScopes2 fail");
-                                CSP_LOG_ERROR_FORMAT("Error setting scopes, ErrorCode: %s", csp::multiplayer::ErrorCodeToString(Error).c_str());
-                                INVOKE_IF_NOT_NULL(Callback, MakeInvalid<NullResult>());
-                                return;
-                            }
-                            else
-                            {
-                                CSP_LOG_MSG(csp::systems::LogLevel::Verbose, "SetScopes was called successfully");
-                            }
-
-                            auto& SystemsManager = csp::systems::SystemsManager::Get();
-                            SystemsManager.GetSpaceEntitySystem()->Initialise();
-
-                            MultiplayerConnection->StartListening(
-                                [this, MultiplayerConnection, InternalResult, Callback](csp::multiplayer::ErrorCode Error)
-                                {
-                                    if (Error != csp::multiplayer::ErrorCode::None)
-                                    {
-                                        CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StartListening fail");
-                                        CSP_LOG_ERROR_FORMAT("Error starting listening in order to set scopes, ErrorCode: %s",
-                                            csp::multiplayer::ErrorCodeToString(Error).c_str());
-                                        INVOKE_IF_NOT_NULL(Callback, MakeInvalid<NullResult>());
-                                        return;
-                                    }
-
-                                    CSP_LOG_MSG(csp::systems::LogLevel::Log, " MultiplayerConnection->StartListening success");
-
-                                    // TODO: Support getting errors from RetrieveAllEntities
-                                    csp::systems::SystemsManager::Get().GetSpaceEntitySystem()->RetrieveAllEntities();
-
-                                    INVOKE_IF_NOT_NULL(Callback, InternalResult);
-                                });
-                        });
-                });
-        }
-    };
-
-    GetSpace(SpaceId, GetSpaceCallback);
+        });
 }
 
 void SpaceSystem::ExitSpace(NullResultCallback Callback)
@@ -900,8 +890,8 @@ void SpaceSystem::UpdateUserRole(const String& SpaceId, const UserRoleInfo& NewU
     }
     else if (NewUserRole == SpaceUserRole::User)
     {
-        // TODO: When the Client will be able to change the space owner role get a fresh Space object to see if the NewUserRoleInfo.UserId is still a
-        // space owner
+        // TODO: When the Client will be able to change the space owner role get a fresh Space object to see if the NewUserRoleInfo.UserId is
+        // still a space owner
         if (SpaceId == NewUserRoleInfo.UserId)
         {
             // An owner must firstly pass the space ownership to someone else before it can become a user
@@ -1397,7 +1387,8 @@ void SpaceSystem::AddSpaceThumbnail(const csp::common::String& SpaceId, const Fi
     const String SpaceThumbnailAssetCollectionName = SpaceSystemHelpers::GetSpaceThumbnailAssetCollectionName(SpaceId);
     const auto Tag = Array<String>({ SpaceId });
 
-    // don't associate this asset collection with a particular space so that it can be retrieved by guest users that have not joined this space
+    // don't associate this asset collection with a particular space so that it can be retrieved by guest users that have not joined this
+    // space
     AssetSystem->CreateAssetCollection(
         SpaceId, nullptr, SpaceThumbnailAssetCollectionName, nullptr, EAssetCollectionType::SPACE_THUMBNAIL, Tag, CreateAssetCollCallback);
 }
@@ -1851,5 +1842,4 @@ void SpaceSystem::DuplicateSpace(const String& SpaceId, const String& NewName, S
         ResponseHandler // ResponseHandler
     );
 }
-
 } // namespace csp::systems

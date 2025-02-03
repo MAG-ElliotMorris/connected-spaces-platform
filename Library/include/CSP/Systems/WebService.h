@@ -79,6 +79,7 @@ enum class ERequestFailureReason
     UserShopifyLimitReached,
     UserTokenRefreshFailed,
     InvalidSequenceKey,
+    RequestTimedOut,
 };
 
 /// @brief Base class for a HTTP request result.

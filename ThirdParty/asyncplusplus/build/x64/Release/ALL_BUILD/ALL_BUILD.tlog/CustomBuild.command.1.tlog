@@ -1,0 +1,10 @@
+^C:\DEV\CONNECTED-SPACES-PLATFORM\THIRDPARTY\ASYNCPLUSPLUS\CMAKELISTS.TXT
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/dev/connected-spaces-platform/ThirdParty/asyncplusplus -BC:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build --check-stamp-file C:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

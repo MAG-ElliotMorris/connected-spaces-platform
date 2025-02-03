@@ -1,0 +1,5 @@
+C:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build/CMakeFiles/Async++.dir
+C:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build/CMakeFiles/PACKAGE.dir
+C:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build/CMakeFiles/INSTALL.dir
+C:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build/CMakeFiles/ALL_BUILD.dir
+C:/dev/connected-spaces-platform/ThirdParty/asyncplusplus/build/CMakeFiles/ZERO_CHECK.dir

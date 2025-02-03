@@ -78,6 +78,7 @@ if not Project then
             "%{wks.location}/ThirdParty/msgpack/include",
             "%{wks.location}/ThirdParty/quickjs/include",
             "%{wks.location}/ThirdParty/glm",
+			"%{wks.location}/ThirdParty/asyncplusplus/install/include",
             "%{wks.location}/ThirdParty/atomic_queue/include",
             "%{wks.location}/modules/csp-services/generated",
 			"%{wks.location}/modules/tinyspline/src"
@@ -321,7 +322,8 @@ if not Project then
         links {
             "signalrclient",
             "quickjs",
-			"tinyspline"
+			"tinyspline",
+			"%{wks.location}/ThirdParty/asyncplusplus/install/lib/async++"
         }
 
         filter { "platforms:not wasm", "platforms:not Android", "platforms:not macosx", "platforms:not ios" }
