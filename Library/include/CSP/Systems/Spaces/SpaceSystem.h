@@ -48,6 +48,7 @@ namespace async
 {
 CSP_START_IGNORE
 template <typename T> class event_task;
+template <typename T> class task;
 CSP_END_IGNORE
 }
 
@@ -184,6 +185,7 @@ public:
     /// @param SpaceId csp::common::String : unique ID of Space
     /// @param Callback SpaceResultCallback : callback when asynchronous task finishes
     CSP_ASYNC_RESULT void GetSpace(const csp::common::String& SpaceId, SpaceResultCallback Callback);
+    CSP_NO_EXPORT async::task<SpaceResult> GetSpace(const csp::common::String& SpaceId);
 
     /// @brief Invites a given email to a specific space.
     /// @param Space Space : space to invite to
@@ -220,6 +222,7 @@ public:
     /// @param UserId csp::common::String : unique ID of user
     /// @param Callback SpaceResultCallback : callback when asynchronous task finishes
     CSP_ASYNC_RESULT void AddUserToSpace(const csp::common::String& SpaceId, const csp::common::String& UserId, SpaceResultCallback Callback);
+    CSP_NO_EXPORT async::task<SpaceResult> AddUserToSpace(const csp::common::String& SpaceId, const csp::common::String& UserId);
 
     /// @brief Creates new Site information and associates it with the Space.
     /// @param Space Space : Space to associate the Site information with
@@ -361,6 +364,10 @@ private:
     void RemoveSpaceThumbnail(const csp::common::String& SpaceId, NullResultCallback Callback);
 
     void GetSpaceGeoLocationInternal(const csp::common::String& SpaceId, SpaceGeoLocationResultCallback Callback);
+
+    // EnterSpace Continuations
+    auto RefreshMultiplayerScopes();
+    auto ResetJoinStateIfChainHasThrown(); // Task based continuation to slap on then end of chain to catch exceptions
 
     void RefreshMultiplayerConnectionToEnactScopeChange(csp::common::String SpaceId,
         std::shared_ptr<async::event_task<std::optional<csp::multiplayer::ErrorCode>>> RefreshMultiplayerContinuationEvent);
