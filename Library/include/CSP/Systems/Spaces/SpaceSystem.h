@@ -27,7 +27,7 @@
 #include "CSP/Systems/Spaces/UserRoles.h"
 #include "CSP/Systems/SystemBase.h"
 
-#include <future>
+#include <memory>
 #include <optional>
 
 namespace csp::services
@@ -46,7 +46,9 @@ class WebClient;
 
 namespace async
 {
+CSP_START_IGNORE
 template <typename T> class event_task;
+CSP_END_IGNORE
 }
 
 namespace csp::memory
@@ -360,8 +362,8 @@ private:
 
     void GetSpaceGeoLocationInternal(const csp::common::String& SpaceId, SpaceGeoLocationResultCallback Callback);
 
-    void RefreshMultiplayerConnectionToEnactScopeChange(
-        const csp::common::String& SpaceId, async::event_task<std::optional<csp::multiplayer::ErrorCode>>& RefreshMultiplayerContinuationEvent);
+    void RefreshMultiplayerConnectionToEnactScopeChange(csp::common::String SpaceId,
+        std::shared_ptr<async::event_task<std::optional<csp::multiplayer::ErrorCode>>> RefreshMultiplayerContinuationEvent);
 
     csp::services::ApiBase* GroupAPI;
     csp::services::ApiBase* SpaceAPI;
