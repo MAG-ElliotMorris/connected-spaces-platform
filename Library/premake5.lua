@@ -13,6 +13,7 @@ include "ThirdParty/poco/NETSSL_OpenSSL/premake5.lua"
 include "ThirdParty/signalrclient/premake5.lua"
 include "ThirdParty/mimalloc/premake5.lua"
 include "ThirdParty/quickjs/premake5.lua"
+include "ThirdParty/asyncplusplus/premake5.lua"
 include "modules/premake5.lua"
 
 
@@ -78,7 +79,7 @@ if not Project then
             "%{wks.location}/ThirdParty/msgpack/include",
             "%{wks.location}/ThirdParty/quickjs/include",
             "%{wks.location}/ThirdParty/glm",
-			"%{wks.location}/ThirdParty/asyncplusplus/install/include",
+			"%{wks.location}/ThirdParty/asyncplusplus/include",
             "%{wks.location}/ThirdParty/atomic_queue/include",
             "%{wks.location}/modules/csp-services/generated",
 			"%{wks.location}/modules/tinyspline/src"
@@ -110,7 +111,8 @@ if not Project then
             "POCO_UTIL_NO_INIFILECONFIGURATION",
             "POCO_UTIL_NO_JSONCONFIGURATION",
             "POCO_UTIL_NO_XMLCONFIGURATION",
-            "POCO_NET_NO_IPv6"
+            "POCO_NET_NO_IPv6",
+			"LIBASYNC_STATIC"
         }
 
         filter "platforms:not wasm"
@@ -323,7 +325,7 @@ if not Project then
             "signalrclient",
             "quickjs",
 			"tinyspline",
-			"%{wks.location}/ThirdParty/asyncplusplus/install/lib/async++"
+			"asyncplusplus"
         }
 
         filter { "platforms:not wasm", "platforms:not Android", "platforms:not macosx", "platforms:not ios" }
@@ -379,6 +381,7 @@ if not Project then
             SignalRClient.AddProject()
             QuickJS.AddProject()
 			TinySpline.AddProject()
+			AsyncPlusPlus.AddProject()
         end
         
         --Add the following projects only for a non WebAssembly project generation
