@@ -197,6 +197,7 @@ inline void InitialiseFoundationWithUserAgentInfo(const csp::common::String& End
     ClientHeaderInfo.CHSEnvironment = "oDev";
 
     csp::CSPFoundation::SetClientUserAgentInfo(ClientHeaderInfo);
+    LogicHere();
 }
 
 inline void WaitForCallback(bool& CallbackCalled, int MaxTextTimeSeconds = 20)
