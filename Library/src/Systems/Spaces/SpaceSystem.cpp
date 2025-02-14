@@ -242,6 +242,9 @@ void SpaceSystem::EnterSpace(const String& SpaceId, NullResultCallback Callback)
                 CSP_LOG_MSG(csp::systems::LogLevel::Log, "EnterSuccess fail");
             }
 
+            NullResult InternalResult(Thing);
+            Thing.ThisnewFunc();
+
             auto* MultiplayerConnection = csp::systems::SystemsManager::Get().GetMultiplayerConnection();
 
             // Unfortunately we have to stop listening in order for our scope change to take effect, then start again once done.
