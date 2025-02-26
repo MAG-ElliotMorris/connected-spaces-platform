@@ -70,7 +70,7 @@ project "UnitTestingBinary"
 
         defines {
             "CSP_WINDOWS",
-            "BUILD_CSP_DLL"
+            "CSP_BUILD_SHARED"
         }
 
         flags {

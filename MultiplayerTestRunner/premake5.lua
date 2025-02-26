@@ -38,7 +38,7 @@ if not MultiplayerTestRunner then
         dependson {"ConnectedSpacesPlatform"}
         libdirs {"%{wks.location}/Library/Binaries/%{cfg.platform}/%{cfg.buildcfg}"}
 		links {"ConnectedSpacesPlatform"}
-		defines {"USING_CSP_DLL"}
+		defines {"USING_CSP_SHARED"}
 		
 		filter "platforms:x64"
             linkoptions { "/ignore:4099"} --Complains about no PDB for googletest, don't care.
