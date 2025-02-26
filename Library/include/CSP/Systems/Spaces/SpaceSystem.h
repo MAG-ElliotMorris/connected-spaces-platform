@@ -28,6 +28,7 @@
 #include "CSP/Systems/SystemBase.h"
 
 #include <optional>
+#include <memory>
 
 namespace csp::services
 {

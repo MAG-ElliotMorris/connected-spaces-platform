@@ -15,7 +15,7 @@
  */
 #include "CSP/Systems/SystemsManager.h"
 
-#include "CSP/Multiplayer/MultiplayerConnection.h"
+#include "CSP/Multiplayer/MultiPlayerConnection.h"
 #include "CSP/Systems/Analytics/AnalyticsSystem.h"
 #include "CSP/Systems/Assets/AssetSystem.h"
 #include "CSP/Systems/ECommerce/ECommerceSystem.h"

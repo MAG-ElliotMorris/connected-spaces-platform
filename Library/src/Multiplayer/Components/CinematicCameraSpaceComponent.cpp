@@ -20,6 +20,8 @@
 #include "Memory/Memory.h"
 #include "Multiplayer/Script/ComponentBinding/CinematicCameraSpaceComponentScriptInterface.h"
 
+#include <math.h>
+
 namespace csp::multiplayer
 {
 

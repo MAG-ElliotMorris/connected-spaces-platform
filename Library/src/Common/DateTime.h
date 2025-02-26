@@ -23,9 +23,6 @@
 #include <ctime>
 #include <string>
 
-PRAGMA_WARNING_PUSH()
-PRAGMA_WARNING_IGNORE_MSVC(4996) // gmtime/localtime unsafe warnings
-
 namespace csp::common
 {
 
@@ -128,5 +125,3 @@ private:
 };
 
 } // namespace csp::common
-
-PRAGMA_WARNING_POP()

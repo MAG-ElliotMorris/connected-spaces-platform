@@ -16,7 +16,7 @@
 #pragma once
 
 // Enable this define if you are using the CSP library in DLL form
-// #define USING_CSP_DLL
+// #define USING_CSP_SHARED
 
 #if defined(_WIN32) && !defined(CSP_WINDOWS)
 #define CSP_WINDOWS
@@ -41,39 +41,26 @@
 #endif
 
 #if defined CSP_WINDOWS
-#define CSP_DLLEXPORT __declspec(dllexport)
-#define CSP_DLLIMPORT __declspec(dllimport)
+#define CSP_EXPORT __declspec(dllexport)
+#define CSP_IMPORT __declspec(dllimport)
 
-#define PRAGMA_WARNING_PUSH() __pragma(warning(push))
-#define PRAGMA_WARNING_IGNORE_MSVC(WarningCode) __pragma(warning(disable : WarningCode))
-#define PRAGMA_WARNING_IGNORE_CLANG(WarningName)
-#define PRAGMA_WARNING_POP() __pragma(warning(pop))
 #elif defined CSP_MACOSX || defined CSP_IOS || defined CSP_ANDROID
-#define CSP_DLLEXPORT __attribute__((visibility("default")))
-#define CSP_DLLIMPORT __attribute__((visibility("default")))
+#define CSP_EXPORT __attribute__((visibility("default")))
+#define CSP_IMPORT __attribute__((visibility("default")))
 
-#define DO_PRAGMA(X) _Pragma(#X) // DO_PRAGMA stringizing trick - https://gcc.gnu.org/onlinedocs/cpp/Pragmas.html
-#define PRAGMA_WARNING_PUSH() _Pragma("clang diagnostic push")
-#define PRAGMA_WARNING_IGNORE_MSVC(WarningCode)
-#define PRAGMA_WARNING_IGNORE_CLANG(WarningName) DO_PRAGMA(clang diagnostic ignored #WarningName)
-#define PRAGMA_WARNING_POP() _Pragma("clang diagnostic pop")
 #endif
 
-#ifdef BUILD_CSP_DLL
-#define CSP_API CSP_DLLEXPORT
-#define CSP_C_API CSP_DLLEXPORT
-#elif defined USING_CSP_DLL
-#define CSP_API CSP_DLLIMPORT
+#ifdef CSP_BUILD_SHARED
+#define CSP_API CSP_EXPORT
+#define CSP_C_API CSP_EXPORT
+#elif defined USING_CSP_SHARED
+#define CSP_API CSP_IMPORT
 #define CSP_C_API
 #elif defined CSP_WASM
 #define CSP_API
 // The EMSCRIPTEN_KEEPALIVE keyword is the way to export a function from WASM in order to call it from the JS side.
 #define CSP_C_API EMSCRIPTEN_KEEPALIVE
 
-#define PRAGMA_WARNING_PUSH()
-#define PRAGMA_WARNING_IGNORE_MSVC(WarningCode)
-#define PRAGMA_WARNING_IGNORE_CLANG(WarningName)
-#define PRAGMA_WARNING_POP()
 #else
 #define CSP_API
 #define CSP_C_API

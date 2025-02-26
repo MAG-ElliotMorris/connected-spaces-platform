@@ -18,6 +18,7 @@
 #include "Memory/Memory.h"
 
 #include <algorithm>
+#include <cstring>
 
 namespace csp::memory
 {

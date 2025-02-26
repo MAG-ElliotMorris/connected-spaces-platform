@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include "Memory/Memory.h"
+#include <cstdlib>
 
 #if CSP_MEMORY_OVERRIDE_GLOBAL_NEW
 void* operator new(size_t size) { return csp::memory::DefaultAllocator()->Allocate(size); }

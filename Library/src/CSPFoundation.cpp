@@ -15,7 +15,7 @@
  */
 #include "CSP/CSPFoundation.h"
 
-#include "../../Tools/WrapperGenerator/Output/C/generated_wrapper.h"
+//#include "../../Tools/WrapperGenerator/Output/C/generated_wrapper.h"
 #include "CSP/Common/StringFormat.h"
 #include "CSP/Systems/SystemsManager.h"
 #include "CSP/version.h"
@@ -23,6 +23,7 @@
 #include "Common/Wrappers.h"
 #include "Debug/Logging.h"
 #include "Events/EventSystem.h"
+#include "Memory/Memory.h"
 
 #include <cstdio>
 
@@ -42,7 +43,7 @@
 
 #define LOAD_OWN_MODULE() (void*)GetModuleHandleA(LIB_NAME)
 #define GET_FUNCTION_ADDRESS(mod, name) (void*)GetProcAddress((HMODULE)(mod), name)
-#elif defined(CSP_ANDROID)
+#elif defined(CSP_LINUX)
 // For dlopen and dlsym
 #include <dlfcn.h>
 // For fstat and mkdir
@@ -145,6 +146,19 @@ std::string DeviceIdPath()
     auto CSPDataRoot = Conv.to_bytes(std::wstring(Path)) + "\\MagnopusCSP\\";
 
     CoTaskMemFree(Path);
+#elif defined(CSP_LINUX)
+    // On Linux, we follow the XDG Base Directory Specification.
+    // Use $XDG_DATA_HOME if set; otherwise, default to ~/.local/share.
+    const char* xdgDataHome = std::getenv("XDG_DATA_HOME");
+    std::string dataDir;
+    if (xdgDataHome && *xdgDataHome)
+        dataDir = xdgDataHome;
+    else {
+        const char* home = std::getenv("HOME");
+        dataDir = home ? std::string(home) + "/.local/share" : "/tmp";
+    }
+
+    auto CSPDataRoot = dataDir + "/MagnopusCSP/";
 #elif defined(CSP_ANDROID)
     // On Android, we store the device ID in the app's local storage directory
     FILE* CmdlineFile = fopen("/proc/self/cmdline", "r");

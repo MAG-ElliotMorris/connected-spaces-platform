@@ -19,6 +19,7 @@
 #include "Memory/Memory.h"
 #include "Memory/StlAllocator.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <chrono>
 #include <functional>
