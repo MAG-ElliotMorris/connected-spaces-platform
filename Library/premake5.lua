@@ -127,8 +127,9 @@ newaction {
             os.chdir(buildDir)
 
             -- Execute the 'make' command
-            local result = os.execute("make")
-
+            -- local result = os.execute("make") (THE LINUX COMMAND, YOU NEED TO SPLIT THIS UP)
+            local vsSolution = "ConnectedSpacesPlatformLibrary.sln"
+            os.execute("msbuild " .. vsSolution .. " /t:Rebuild /verbosity:d /p:Configuration=Release")
             os.chdir("../");
         else
             print("Build directory does not exist. Have you ran premake5 gmake? (or premake5 vs2022)")

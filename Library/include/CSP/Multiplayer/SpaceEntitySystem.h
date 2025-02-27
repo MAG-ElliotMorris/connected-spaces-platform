@@ -27,6 +27,7 @@
 #include <list>
 #include <mutex>
 #include <set>
+#include <chrono>
 
 namespace signalr
 {

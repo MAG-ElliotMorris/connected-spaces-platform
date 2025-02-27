@@ -7,7 +7,7 @@ function ConfigBuildForMSVC()
           "NO_SIGNALRCLIENT_EXPORTS",
           "USE_MSGPACK",
           "POCO_STATIC", -- Not for WASM
-          "POCO_NO_AUTOMATIC_LIBS" -- Not for WASM
+          "POCO_NO_AUTOMATIC_LIBS", -- Not for WASM
           "POCO_NO_INOTIFY",
           "POCO_NO_FILECHANNEL",
           "POCO_NO_SPLITTERCHANNEL",
@@ -59,7 +59,7 @@ function ConfigBuildForMSVC()
         "dependencies/poco/Crypto/include",
         "dependencies/poco/NETSSL_OpenSSL/include",
         -- OpenSSL is not used in WASM builds
-        "dependencies/OpenSSL/1.1.1k/include"
+        "dependencies/OpenSSL/1.1.1k/include",
         "dependencies/OpenSSL/1.1.1k/include/platform/win64"
     }
 
