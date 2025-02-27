@@ -2,6 +2,15 @@ function ConfigBuildForClang()
 
     toolset "clang"
 
+    buildoptions {
+        "-stdlib=libc++"
+    }
+
+    linkoptions {
+        "-stdlib=libc++",
+        "-lc++abi" --Use the libc++ ABI (clang standard library, as opposed to libstdc++ (GCC))
+    }
+
     defines {
           "CSP_DESKTOP",
           "CSP_LINUX",
