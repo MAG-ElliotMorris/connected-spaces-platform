@@ -1,6 +1,0 @@
-path_classifiers:
-  library:
-    - src/parson.c
-    - src/parson.h
-  test:
-    - test/
