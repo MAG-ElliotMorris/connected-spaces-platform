@@ -1,0 +1,46 @@
+{% from 'helpers.jinja2' import are_values_notequal %}
+
+// Include the generated C interface so it gets compiled
+#include "../../Tools/WrapperGenerator/Output/C/generated_wrapper.h"
+
+#include "CSP/Memory/DllAllocator.h"
+
+#include "Memory/Memory.h"
+
+#include <cassert>
+#include <cmath>
+#include <limits>
+
+#include "generated_exports.h"
+
+
+using namespace std::chrono_literals;
+
+
+namespace csp {
+    // Helper function to free allocated memory from wrappers
+    CSP_API void Free(void* Pointer) {
+        csp::memory::DllFree(Pointer);
+    }
+
+    // Helper function to check floats for equality using dynamic tolerance value
+    inline bool FloatsAreEqual(double A, double B) {
+        auto Tolerance = std::fmax(std::fabs(A), std::fabs(B)) * 1E-8;
+
+        return (std::fabs(A - B) <= Tolerance);
+    }
+
+
+    /********************************/
+    /*       Global functions       */
+    /********************************/
+
+    {% include 'partials/functions/functions.cpp.jinja2' %}
+
+
+    /********************************/
+    /*           Classes            */
+    /********************************/
+
+    {% include 'partials/classes/classes.cpp.jinja2' %}
+} // namespace csp
