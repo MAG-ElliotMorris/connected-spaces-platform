@@ -6,7 +6,7 @@ end
 
 function QuickJS.AddProject()
     project "quickjs"
-    location "ThirdParty/quickjs"
+    location "dependencies/quickjs/build"
     kind "StaticLib"
     language "C++"
     cppdialect "C++17"
@@ -34,14 +34,14 @@ function QuickJS.AddProject()
     filter {}
 	
     files {
-        "%{prj.location}/**.h",
-        "%{prj.location}/**.hpp",
-        "%{prj.location}/src/**.c",
+        "%{prj.location}/../**.h",
+        "%{prj.location}/../**.hpp",
+        "%{prj.location}/../src/**.c",
     }
 
     -- Source directories for this project
     externalincludedirs { 
-        "%{prj.location}/include",
-        "%{prj.location}/src",
+        "%{prj.location}/../include",
+        "%{prj.location}/../src",
     }
 end

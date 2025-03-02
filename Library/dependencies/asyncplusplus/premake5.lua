@@ -6,7 +6,7 @@ end
 
 function AsyncPlusPlus.AddProject()
     project "asyncplusplus"
-    location "ThirdParty/asyncplusplus"
+    location "dependencies/asyncplusplus/build"
     kind "StaticLib"
     language "C++"
     cppdialect "C++17"
@@ -30,15 +30,15 @@ function AsyncPlusPlus.AddProject()
 	filter {}
 	
     files {
-        "%{prj.location}/include/**.h",
-        "%{prj.location}/include/**.hpp",
-        "%{prj.location}/src/**.c",
-		"%{prj.location}/src/**.cpp",
+        "%{prj.location}/../include/**.h",
+        "%{prj.location}/../include/**.hpp",
+        "%{prj.location}/../src/**.c",
+		"%{prj.location}/../src/**.cpp",
     }
 
     -- Source directories for this project
     externalincludedirs { 
-        "%{prj.location}/include",
-        "%{prj.location}/src",
+        "%{prj.location}/../include",
+        "%{prj.location}/../src",
     }
 end

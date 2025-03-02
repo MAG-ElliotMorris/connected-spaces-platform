@@ -6,26 +6,26 @@ end
 
 function SignalRClient.AddProject()
     project "signalrclient"
-    location "ThirdParty/signalrclient"
+    location "dependencies/signalrclient/build"
     kind "StaticLib"
     language "C++"
-    cppdialect "C++11"
+    cppdialect "C++14" --std::binary_function was removed in c++17
 	warnings "Off"
 
     files {
-        "%{prj.location}/**.h",
-        "%{prj.location}/**.cpp",
+        "%{prj.location}/../**.h",
+        "%{prj.location}/../**.cpp",
     }
     
     defines { "NO_SIGNALRCLIENT_EXPORTS", "USE_MSGPACK" }
-    
+
     -- Source directories for this project
     externalincludedirs { 
-        "%{prj.location}/include",
-        "%{prj.location}/src",
-        "%{prj.location}/third_party_code/jsoncpp",
-        "%{prj.location}/third_party_code/cpprestsdk",
-        "%{wks.location}/ThirdParty/msgpack/include"
+        "%{prj.location}/../include",
+        "%{prj.location}/../src",
+        "%{prj.location}/../third_party_code/jsoncpp",
+        "%{prj.location}/../third_party_code/cpprestsdk",
+        _MAIN_SCRIPT_DIR .. "/dependencies/msgpack/include"
     }
     
     -- Config for platforms

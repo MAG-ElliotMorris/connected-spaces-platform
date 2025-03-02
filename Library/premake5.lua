@@ -21,7 +21,9 @@ workspace "ConnectedSpacesPlatformLibrary"
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
 project "CSP"
-    location "Library"
+    location "build"
+
+    print("Main Premake Directory (_MAIN_SCRIPT_DIR): " .. _MAIN_SCRIPT_DIR)
 
     -- Choose project type, "StaticLib" and "SharedLib" are the premake spellings of these options
     local libraryKinds = {
@@ -87,17 +89,6 @@ newaction {
     trigger     = "clean",
     description = "Remove all generated files and directories",
     execute     = function ()
-        local dirs_to_remove = {
-            "./bin",
-            "./intermediate",
-            "./build",
-            "./install"
-        }
-
-        for _, dir in ipairs(dirs_to_remove) do
-            print("Removing directory: " .. dir)
-            os.rmdir(dir)
-        end
 
         local files_to_remove = {
             "./**.make"     -- Remove all Makefiles
@@ -106,6 +97,39 @@ newaction {
         for _, file in ipairs(files_to_remove) do
             print("Removing file: " .. file)
             os.remove(file)
+        end
+
+        local function remove_directory(dir)
+            if os.isdir(dir) then
+                print("Removing directory: " .. dir)
+                os.rmdir(dir)
+            else
+                print("Skipping (not found): " .. dir)
+            end
+        end
+
+        -- Explicitly remove the build directories for dependencies
+        local dirs_to_remove = {
+            "./bin",
+            "./intermediate",
+            "./build",
+            "./install",
+            "./dependencies/signalrclient/build",
+            "./dependencies/quickjs/build",
+            "./dependencies/tinyspline/build",
+            "./dependencies/asyncplusplus/build",
+            "./dependencies/mimalloc/build",
+            "./dependencies/poco/Crypto/build",
+            "./dependencies/poco/Foundation/build",
+            "./dependencies/poco/Net/build",
+            "./dependencies/poco/NetSLL_OpenSSL/build",
+            "./dependencies/poco/Util/build"
+
+        }
+
+   
+        for _, dir in ipairs(dirs_to_remove) do
+            remove_directory(dir)
         end
 
         print("Clean complete.")
@@ -117,6 +141,33 @@ newaction {
 newaction {
     trigger     = "build",
     description = "Navigate to the build directory and run 'make'",
+    execute     = function ()
+        -- Generate the CPS version
+        os.execute("python3 -m pip install -r ../tools/VersionGenerator/requirements.txt")
+        os.execute("python3 ../Tools/VersionGenerator/VersionGenerator.py")
+
+        -- Specify your build directory
+        local buildDir = "build"
+
+        -- Check if the build directory exists
+        if os.isdir(buildDir) then
+            -- Change to the build directory
+            os.chdir(buildDir)
+
+            -- Execute the 'make' command
+            -- local result = os.execute("make") (THE LINUX COMMAND, YOU NEED TO SPLIT THIS UP)
+            local vsSolution = "ConnectedSpacesPlatformLibrary.sln"
+            os.execute("msbuild " .. vsSolution .. " /verbosity:d /p:Configuration=Release")
+            os.chdir("../");
+        else
+            print("Build directory does not exist. Have you ran premake5 gmake? (or premake5 vs2022)")
+        end
+    end
+}
+
+newaction {
+    trigger     = "rebuild",
+    description = "Navigate to the build directory and run 'make', with the rebuild flag",
     execute     = function ()
         -- Specify your build directory
         local buildDir = "build"

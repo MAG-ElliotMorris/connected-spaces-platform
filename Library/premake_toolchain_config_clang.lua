@@ -1,3 +1,14 @@
+include "dependencies/signalrclient/premake5.lua"
+include "dependencies/mimalloc/premake5.lua"
+include "dependencies/quickjs/premake5.lua"
+include "dependencies/asyncplusplus/premake5.lua"
+include "dependencies/tinyspline/premake5.lua"
+include "dependencies/poco/Crypto/premake5.lua"
+include "dependencies/poco/Foundation/premake5.lua"
+include "dependencies/poco/Net/premake5.lua"
+include "dependencies/poco/NetSSL_OpenSSL/premake5.lua"
+include "dependencies/poco/Util/premake5.lua"
+
 function ConfigBuildForClang()
 
     toolset "clang"
@@ -52,10 +63,21 @@ function ConfigBuildForClang()
         -- mimalloc is not used in WASM builds
         "dependencies/mimalloc/include",
         -- POCO is not used in WASM builds
-        "dependencies/poco/Foundation/include",
-        "dependencies/poco/Util/include",
-        "dependencies/poco/Net/include",
         "dependencies/poco/Crypto/include",
-        "dependencies/poco/NETSSL_OpenSSL/include"
+        "dependencies/poco/Foundation/include",
+        "dependencies/poco/Net/include",
+        "dependencies/poco/NetSSL_OpenSSL/include",
+        "dependencies/poco/Util/include"
     }
+
+    SignalRClient.AddProject()
+    QuickJS.AddProject()
+    TinySpline.AddProject()
+    AsyncPlusPlus.AddProject()
+    MiMalloc.AddProject()
+    POCO.Crypto.AddProject()
+    POCO.Foundation.AddProject()
+    POCO.Net.AddProject()
+    POCO.NETSSL_OpenSSL.AddProject()
+    POCO.Util.AddProject()
 end
