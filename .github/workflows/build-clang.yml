@@ -1,0 +1,39 @@
+name: Build
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: abel0b/setup-premake@v2.4
+        with:
+          version: "5.0.0-beta2"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13' 
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "18.1.8"
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install libtinfo5
+              
+      - name: Build
+        run: |
+          cd Library
+          premake5 gmake2
+          premake5 build

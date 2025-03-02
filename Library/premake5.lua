@@ -154,10 +154,12 @@ newaction {
             -- Change to the build directory
             os.chdir(buildDir)
 
-            -- Execute the 'make' command
-            -- local result = os.execute("make") (THE LINUX COMMAND, YOU NEED TO SPLIT THIS UP)
-            local vsSolution = "ConnectedSpacesPlatformLibrary.sln"
-            os.execute("msbuild " .. vsSolution .. " /verbosity:d /p:Configuration=Release")
+            if os.host() == "windows" then
+                local vsSolution = "ConnectedSpacesPlatformLibrary.sln"
+                os.execute("msbuild " .. vsSolution .. " /verbosity:d")
+            else
+                os.execute("make")
+            end
             os.chdir("../");
         else
             print("Build directory does not exist. Have you ran premake5 gmake? (or premake5 vs2022)")
@@ -177,10 +179,12 @@ newaction {
             -- Change to the build directory
             os.chdir(buildDir)
 
-            -- Execute the 'make' command
-            -- local result = os.execute("make") (THE LINUX COMMAND, YOU NEED TO SPLIT THIS UP)
-            local vsSolution = "ConnectedSpacesPlatformLibrary.sln"
-            os.execute("msbuild " .. vsSolution .. " /t:Rebuild /verbosity:d /p:Configuration=Release")
+            if os.host() == "windows" then
+                local vsSolution = "ConnectedSpacesPlatformLibrary.sln"
+                os.execute("msbuild " .. vsSolution .. " /t:Rebuild /verbosity:d")
+            else
+                os.execute("make -B")
+            end
             os.chdir("../");
         else
             print("Build directory does not exist. Have you ran premake5 gmake? (or premake5 vs2022)")

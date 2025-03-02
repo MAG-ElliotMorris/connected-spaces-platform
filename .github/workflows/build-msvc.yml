@@ -1,0 +1,34 @@
+name: Build
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: abel0b/setup-premake@v2.4
+        with:
+          version: "5.0.0-beta2"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13' 
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+        with:
+          vs-version: '16.5'
+
+      - name: Build on Windows
+        run: |
+          cd Library
+          premake5 vs2022
+          premake5 build
