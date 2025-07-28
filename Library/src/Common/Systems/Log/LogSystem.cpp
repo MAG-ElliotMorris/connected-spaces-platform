@@ -107,12 +107,12 @@ void LogSystem::BeginMarker(const csp::common::String& InMarker)
     }
 }
 
-void LogSystem::EndMarker()
+void LogSystem::EndMarker(const csp::common::String& InMarker)
 {
     if (Callbacks->EndMarkerCallback != nullptr)
     {
         // Send message to clients to display the log on the client side.
-        Callbacks->EndMarkerCallback(nullptr);
+        Callbacks->EndMarkerCallback(InMarker);
     }
 }
 

@@ -609,7 +609,7 @@ CSP_INTERNAL_TEST(CSPEngine, LogSystemTests, ProfileTest)
             std::cout << InMessage << std::endl;
         });
 
-    LogSystem.SetEndMarkerCallback([&](void*) { EndConfirmed = true; });
+    LogSystem.SetEndMarkerCallback([&](csp::common::String) { EndConfirmed = true; });
 
     LogSystem.SetEventCallback(
         [&](csp::common::String InMessage)
@@ -628,10 +628,10 @@ CSP_INTERNAL_TEST(CSPEngine, LogSystemTests, ProfileTest)
     CSP_PROFILE_SCOPED_TAG(TestTag);
 
     CSP_PROFILE_BEGIN(TestTag);
-    CSP_PROFILE_END();
+    CSP_PROFILE_END(TestTag);
 
     CSP_PROFILE_BEGIN_FORMAT("Marker %d", TestValue);
-    CSP_PROFILE_END();
+    CSP_PROFILE_END(TestTag);
 
     CSP_PROFILE_SCOPED_FORMAT("Marker %d", TestValue);
 

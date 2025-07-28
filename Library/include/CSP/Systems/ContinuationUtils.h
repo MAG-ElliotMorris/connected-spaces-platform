@@ -79,13 +79,21 @@ inline auto AssertRequestSuccessOrErrorFromResult(std::function<void(const Error
 }
 
 /* Print a success message and report a successfull result via the callback */
-template <typename ResultT> inline auto ReportSuccess(std::function<void(const ResultT&)> Callback, std::string SuccessMsg)
+template <typename ResultT>
+inline auto ReportSuccess(
+    std::function<void(const ResultT&)> Callback, std::string SuccessMsg, std::optional<std::string> ProfilingTag = std::optional<std::string> {})
 {
-    return [Callback, SuccessMsg = std::move(SuccessMsg)]()
+    return [Callback, SuccessMsg = std::move(SuccessMsg), ProfilingTag = std::move(ProfilingTag)]()
     {
         /* Continuation was a success. We're done! */
         CSP_LOG_MSG(csp::common::LogLevel::Log, SuccessMsg.c_str());
         ResultT SuccessResult(EResultCode::Success, csp::web::EResponseCodes::ResponseOK, ERequestFailureReason::None);
+
+        if (ProfilingTag.has_value())
+        {
+            CSP_PROFILE_END(ProfilingTag.value().c_str());
+        }
+
         if (Callback)
         {
             Callback(SuccessResult);

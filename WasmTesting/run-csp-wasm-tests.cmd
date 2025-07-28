@@ -1,6 +1,8 @@
 SET "SHARED_TARGET=%CD%\shared"
 SET "NODE_MODULES_TARGET=%CD%\node_modules"
 
+REM Pass --benchmark as a flag to run benchmarks rather than tests.
+
 REM Junction node_modules so web server can serve them
 IF NOT EXIST ".\html_tests\node_modules" (
     mklink /J ".\html_tests\node_modules" "%NODE_MODULES_TARGET%"
@@ -33,5 +35,10 @@ IF ERRORLEVEL 8 (
     EXIT /B %ERRORLEVEL%
 )
 
-REM Run tests (via uvu)
-CALL yarn test
+IF "%1"=="--benchmark" (
+    REM Run benchmarks (via uvu)
+    CALL yarn benchmark
+) ELSE (
+    REM Run tests (via uvu)
+    CALL yarn test
+)

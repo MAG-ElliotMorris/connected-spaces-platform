@@ -41,6 +41,7 @@
 #include "Multiplayer/SignalR/POCOSignalRClient/POCOSignalRClient.h"
 #endif
 
+#include <Debug/Logging.h>
 #include <chrono>
 #include <exception>
 #include <fmt/format.h>
@@ -791,7 +792,7 @@ void SpaceEntitySystem::RetrieveAllEntities()
     {
         return;
     }
-
+    CSP_PROFILE_BEGIN("RetrieveAllEntities");
     GetEntitiesPaged(0, ENTITY_PAGE_LIMIT, CreateRetrieveAllEntitiesCallback(0)); // Get at most ENTITY_PAGE_LIMIT entities at a time
 }
 
@@ -949,6 +950,7 @@ void SpaceEntitySystem::OnAllEntitiesCreated()
     // Enable entity tick events
     EnableEntityTick = true;
 
+    CSP_PROFILE_END("RetrieveAllEntities");
     if (InitialEntitiesRetrievedCallback)
     {
         InitialEntitiesRetrievedCallback(true);

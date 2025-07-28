@@ -1,0 +1,22 @@
+PROFILESTART EnterSpace:System --- 2820.9599999934435
+PROFILESTART GetGroupId (GetSpace) --- 2821.734999999404
+PROFILEEND GetGroupId (GetSpace) --- 4040.515000000596
+PROFILESTART GetGroupId (GetSpace):ClientSideCallbackProcessing --- 4040.7249999940395
+PROFILEEND GetGroupId (GetSpace):ClientSideCallbackProcessing --- 4040.969999998808
+PROFILESTART GetGroupId (GetSpace) --- 4042.5499999970198
+PROFILEEND GetGroupId (GetSpace) --- 4233.465000003576
+PROFILESTART GetGroupId (GetSpace):ClientSideCallbackProcessing --- 4233.604999989271
+PROFILEEND GetGroupId (GetSpace):ClientSideCallbackProcessing --- 4233.679999992251
+PROFILESTART GroupCodesUserPut (Add User To Space) --- 4234.129999995232
+PROFILEEND GroupCodesUserPut (Add User To Space) --- 4659.634999990463
+PROFILESTART GroupCodesUserPut (Add User To Space):ClientSideCallbackProcessing --- 4659.784999996424
+PROFILEEND GroupCodesUserPut (Add User To Space):ClientSideCallbackProcessing --- 4659.9749999940395
+PROFILESTART RefreshMultiplayerScopes --- 4661.295000001788
+PROFILESTART csp::multiplayer::SignalRConnection::Invoke --- 4662.594999998808
+PROFILESTART csp::multiplayer::SignalRConnection::Invoke --- 4857.719999998808
+PROFILESTART csp::multiplayer::SignalRConnection::Invoke --- 5238.819999992847
+PROFILESTART RetrieveAllEntities --- 5430.905000001192
+PROFILESTART csp::multiplayer::SignalRConnection::Invoke --- 5431.789999991655
+PROFILEEND RefreshMultiplayerScopes --- 5433.034999996424
+PROFILEEND EnterSpace:System --- 5435.009999990463
+PROFILEEND RetrieveAllEntities --- 5633.129999995232

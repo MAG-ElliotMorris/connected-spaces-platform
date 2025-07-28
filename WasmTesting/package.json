@@ -2,7 +2,8 @@
   "name": "csp-wasm-tests",
   "type": "module",
   "scripts": {
-    "test": "tsc --noEmit --strict && tsx csp-wasm.test.ts"
+    "test": "tsc --noEmit --strict && tsx csp-wasm.test.ts",
+    "benchmark": "tsc --noEmit --strict && tsx csp-wasm-benchmarks.ts"
   },
   "dependencies": {
     "puppeteer": "^24.8.2",

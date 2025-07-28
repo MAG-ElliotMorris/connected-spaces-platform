@@ -17,6 +17,7 @@
 #include "Awaitable.h"
 #include "CSP/Common/Array.h"
 #include "CSP/Common/SharedEnums.h"
+#include "CSP/Common/Systems/Log/LogSystem.h"
 #include "CSP/Multiplayer/MultiPlayerConnection.h"
 #include "CSP/Systems/Assets/AssetSystem.h"
 #include "CSP/Systems/Spaces/SpaceSystem.h"
@@ -25,11 +26,14 @@
 #include "TestHelpers.h"
 #include "UserSystemTestHelpers.h"
 
+#include "CSP/Common/fmt_Formatters.h"
 #include "gtest/gtest-param-test.h"
 #include "gtest/gtest.h"
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <filesystem>
+#include <fmt/format.h>
 #include <tuple>
 #include <uuid_v4.h>
 
@@ -312,7 +316,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -342,7 +346,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithThumbnailTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -382,7 +386,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithInvalidThumbnailTest
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -432,7 +436,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithTagsTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -464,7 +468,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithBulkInviteTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -507,7 +511,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithEmptyBulkInviteTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -544,7 +548,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithBufferTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -590,7 +594,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithBufferWithThumbnailT
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
     auto* AssetSystem = SystemsManager.GetAssetSystem();
@@ -661,7 +665,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithInvalidBufferWithThu
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -725,7 +729,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithBufferWithBulkInvite
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -784,7 +788,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithBufferWithEmptyBulkI
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -837,7 +841,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpaceDescriptionTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -885,7 +889,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpaceTypeTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -933,7 +937,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetSpacesTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -986,7 +990,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetSpaceTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1021,7 +1025,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetSpacesByIdsTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1083,7 +1087,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetPublicSpacesAsGuestTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1151,7 +1155,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetPublicSpacesTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1207,7 +1211,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetPrivateSpacesTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1263,7 +1267,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetPaginatedPrivateSpacesTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1320,7 +1324,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, JoinPublicSpaceTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1387,7 +1391,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, AddSiteInfoTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1418,7 +1422,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetSiteInfoTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1475,7 +1479,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateUserRolesTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1580,7 +1584,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateGuestUserRoleTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1627,7 +1631,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, SetUserRoleOnInviteTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1674,7 +1678,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpaceMetadataTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1715,7 +1719,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetSpacesMetadataTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1764,7 +1768,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpaceTagsMetadataTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1807,7 +1811,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpacesTagsMetadataTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1844,7 +1848,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpaceThumbnailTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -1908,7 +1912,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpaceThumbnailWithBufferTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
     auto* AssetSystem = SystemsManager.GetAssetSystem();
@@ -1984,7 +1988,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, CreateSpaceWithEmptyMetadataTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2014,7 +2018,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, UpdateSpaceWithEmptyMetadataTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2046,7 +2050,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetPendingUserInvitesTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2103,7 +2107,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetAcceptedUserInvitesTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2185,7 +2189,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, BulkInvitetoSpaceTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2229,7 +2233,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetPublicSpaceMetadataTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2292,7 +2296,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetSpaceThumbnailTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2353,7 +2357,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GetSpaceThumbnailWithGuestUserTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2412,7 +2416,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, BanGuestUserTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2476,7 +2480,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, BanUserTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2540,9 +2544,19 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, EnterSpaceTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
+
+    auto start = std::chrono::steady_clock::now();
+
+    std::vector<csp::common::String> interestingTags
+        = { "EnterSpace:System", "GetGroupId (GetSpace)", "GetGroupId (GetSpace):ClientSideCallbackProcessing",
+              "GroupCodesUserPut (Add User To Space)", "RefreshMultiplayerScopes", "RetrieveAllEntities", "RetreiveAllEntities" };
+
+    auto* LogSystem = SystemsManager.GetLogSystem();
+
+    LogSystem->SetLogCallback(nullptr);
 
     const char* TestSpaceName = "CSP-UNITTEST-SPACE-MAG";
     const char* TestSpaceDescription = "CSP-UNITTEST-SPACEDESC-MAG";
@@ -2560,9 +2574,37 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, EnterSpaceTest)
     {
         EXPECT_FALSE(SpaceSystem->IsInSpace());
 
+        LogSystem->SetBeginMarkerCallback(
+            [&interestingTags, &start](const csp::common::String& Str)
+            {
+                if (std::any_of(interestingTags.cbegin(), interestingTags.cend(),
+                        [&Str](const csp::common::String& Interest) { return Str.Contains(Interest); }))
+                {
+
+                    auto end = std::chrono::steady_clock::now();
+                    auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                    std::cout << fmt::format("PROFILESTART {} --- {}\n", Str, duration_ms);
+                }
+            });
+        LogSystem->SetEndMarkerCallback(
+            [&interestingTags, &start](const csp::common::String& Str)
+            {
+                if (std::any_of(interestingTags.cbegin(), interestingTags.cend(),
+                        [&Str](const csp::common::String& Interest) { return Str.Contains(Interest); }))
+                {
+
+                    auto end = std::chrono::steady_clock::now();
+                    auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+                    std::cout << fmt::format("PROFILEEND {} --- {}\n", Str, duration_ms);
+                }
+            });
+
         auto [Result] = AWAIT(SpaceSystem, EnterSpace, Space.Id);
 
         EXPECT_EQ(Result.GetResultCode(), csp::systems::EResultCode::Success);
+
+        LogSystem->SetBeginMarkerCallback(nullptr);
+        LogSystem->SetEndMarkerCallback(nullptr);
 
         EXPECT_TRUE(SpaceSystem->IsInSpace());
 
@@ -2595,7 +2637,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, EnterSpaceAsNonModeratorTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2637,7 +2679,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, EnterSpaceAsModeratorTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2694,7 +2736,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GeoLocationTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2820,7 +2862,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GeoLocationValidationTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -2970,7 +3012,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GeoLocationWithoutPermissionTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3064,7 +3106,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, GeoLocationWithoutPermissionPublicS
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3161,7 +3203,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, DuplicateSpaceTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3230,7 +3272,7 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, ReEnterSpaceTest)
 {
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3316,7 +3358,7 @@ TEST_P(EnterSpaceWhenGuest, EnterSpaceWhenGuestTest)
 
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3364,7 +3406,7 @@ TEST_P(EnterSpaceWhenUninvited, EnterSpaceWhenUninvitedTest)
 
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3413,7 +3455,7 @@ TEST_P(EnterSpaceWhenInvited, EnterSpaceWhenInvitedTest)
 
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3469,7 +3511,7 @@ TEST_P(EnterSpaceWhenCreator, EnterSpaceWhenCreatorTest)
 
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 
@@ -3508,7 +3550,7 @@ TEST_P(EnterSpaceWhenBanned, EnterSpaceWhenBannedTest)
 
     SetRandSeed();
 
-    auto& SystemsManager = ::SystemsManager::Get();
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
     auto* UserSystem = SystemsManager.GetUserSystem();
     auto* SpaceSystem = SystemsManager.GetSpaceSystem();
 

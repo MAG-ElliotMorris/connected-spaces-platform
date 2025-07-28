@@ -23,6 +23,7 @@
 #include "Debug/Logging.h"
 #include "Services/DtoBase/DtoBase.h"
 
+#include <fmt/format.h>
 #include <list>
 #include <memory>
 #include <vector>
@@ -164,13 +165,19 @@ class ApiResponseHandler : public ApiResponseHandlerBase
 {
 public:
     ApiResponseHandler(const CallbackType& InCallback, ResponseDependType* InDepend, csp::web::EResponseCodes InValidResponse,
-        async::event_task<ResponseType> InOnResponseEventTask = async::event_task<ResponseType> {})
+        async::event_task<ResponseType> InOnResponseEventTask = async::event_task<ResponseType> {},
+        std::optional<std::string> InProfilingTag = std::optional<std::string> {})
         : ResponseObject(InDepend)
         , ResponseObjectPtr(&ResponseObject)
         , ValidResponse(InValidResponse)
         , Callback(InCallback)
         , OnResponseEventTask(std::move(InOnResponseEventTask))
+        , ProfilingTag(std::move(InProfilingTag))
     {
+        if (ProfilingTag.has_value())
+        {
+            CSP_PROFILE_BEGIN(ProfilingTag.value().c_str());
+        }
     }
 
     void OnHttpProgress(csp::web::HttpRequest& Request) override
@@ -193,8 +200,21 @@ public:
         // Let the response object extract what it needs
         ResponseObjectPtr->OnResponse(&ApiResp);
 
+        if (ProfilingTag.has_value())
+        {
+            CSP_PROFILE_END(ProfilingTag.value().c_str());
+        }
+
+        if (ProfilingTag.has_value())
+        {
+            CSP_PROFILE_BEGIN(fmt::format("{}:ClientSideCallbackProcessing", ProfilingTag.value()).c_str());
+        }
         // Issue final response callback
         Callback(ResponseObject);
+        if (ProfilingTag.has_value())
+        {
+            CSP_PROFILE_END(fmt::format("{}:ClientSideCallbackProcessing", ProfilingTag.value()).c_str());
+        }
 
         // Call any task continuations
         OnResponseEventTask.set(ResponseObject);
@@ -207,6 +227,7 @@ private:
     csp::web::EResponseCodes ValidResponse;
     CallbackType Callback;
     async::event_task<ResponseType> OnResponseEventTask;
+    std::optional<std::string> ProfilingTag;
 };
 
 /// @brief Response Handler Pointer Type
@@ -229,11 +250,12 @@ public:
     template <typename CallbackType, typename ResponseType, typename ResponseDependType, typename DtoType>
     ResponseHandlerPtr CreateHandler(const CallbackType& InCallback, ResponseDependType* InDepend,
         csp::web::EResponseCodes InValidResponseCode = csp::web::EResponseCodes::ResponseOK,
-        async::event_task<ResponseType> InOnResponseEventTask = async::event_task<ResponseType> {})
+        async::event_task<ResponseType> InOnResponseEventTask = async::event_task<ResponseType> {},
+        std::optional<std::string> ProfilingTag = std::optional<std::string> {})
     {
         // This gets owned by the HttpRequest and gets deleted in it's destructor once the request is complete
         ResponseHandlerPtr Handler = new ApiResponseHandler<CallbackType, ResponseType, ResponseDependType, DtoType>(
-            InCallback, InDepend, InValidResponseCode, std::move(InOnResponseEventTask));
+            InCallback, InDepend, InValidResponseCode, std::move(InOnResponseEventTask), std::move(ProfilingTag));
         return Handler;
     }
 

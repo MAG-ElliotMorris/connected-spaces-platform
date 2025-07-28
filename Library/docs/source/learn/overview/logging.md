@@ -188,8 +188,8 @@ End marker callback handlers mark the end of a specific process or phase. They h
 1. **Define the Callback Handler:** Create a function that will handle the end of markers.
 
 ```
-void MyEndMarkerCallback() { 
-	std::cout << "End Marker " << std::endl;
+void MyEndMarkerCallback(csp::common::String endMarker) { 
+	std::cout << "End Marker: " << endMarker << std::endl; 
 }
 ```
 

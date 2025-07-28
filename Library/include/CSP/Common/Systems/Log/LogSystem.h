@@ -54,9 +54,7 @@ public:
     typedef std::function<void(const csp::common::String&)> LogCallbackHandler;
     typedef std::function<void(const csp::common::String&)> EventCallbackHandler;
     typedef std::function<void(const csp::common::String&)> BeginMarkerCallbackHandler;
-
-    // @todo This doesn't need a parameter, but wrapper gen fails without one
-    typedef std::function<void(void*)> EndMarkerCallbackHandler;
+    typedef std::function<void(const csp::common::String&)> EndMarkerCallbackHandler;
 
     /// @brief Set a callback for handling a log. Can be used to debug Connected Spaces Platform within a client application.
     /// @param InLogCallback The callback to execute when a log occurs.
@@ -96,7 +94,7 @@ public:
     /// @brief Specify a 'Marker' event which can be used to communicate a certain process occurring, usually for debugging.
     void BeginMarker(const csp::common::String& InMarker);
     /// @brief End a 'Marker' event.
-    void EndMarker();
+    void EndMarker(const csp::common::String& InMarker);
 
     /// @brief Clears all logging callbacks.
     void ClearAllCallbacks();

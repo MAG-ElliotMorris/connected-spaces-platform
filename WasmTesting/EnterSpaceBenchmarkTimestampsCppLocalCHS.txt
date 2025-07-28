@@ -1,0 +1,9 @@
+PROFILESTART EnterSpace:System --- 212
+PROFILESTART GetGroupId (GetSpace) --- 213
+PROFILEEND GetGroupId (GetSpace) --- 218
+PROFILESTART GetGroupId (GetSpace):ClientSideCallbackProcessing --- 218
+PROFILEEND GetGroupId (GetSpace):ClientSideCallbackProcessing --- 218
+PROFILESTART RefreshMultiplayerScopes --- 220
+PROFILESTART RetrieveAllEntities --- 234
+PROFILEEND RefreshMultiplayerScopes --- 234
+PROFILEEND EnterSpace:System --- 235

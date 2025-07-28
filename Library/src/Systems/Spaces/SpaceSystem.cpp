@@ -324,6 +324,7 @@ auto SpaceSystem::RefreshMultiplayerScopes()
     return [](const SpaceResult& SpaceResult)
     {
         CSP_LOG_MSG(csp::common::LogLevel::Log, "SpaceSystem::RefreshMultiplayerScopes");
+        CSP_PROFILE_BEGIN("RefreshMultiplayerScopes");
 
         /* Refresh the multiplayer connection to force the scopes to change */
         /* This is wrapping a yet-to-be refactored method that uses nested callbacks, hence the event, and shared pointer for lifetime */
@@ -351,6 +352,8 @@ auto SpaceSystem::RefreshMultiplayerScopes()
  */
 void SpaceSystem::EnterSpace(const String& SpaceId, NullResultCallback Callback)
 {
+    constexpr const char* ProfilingTag = "EnterSpace:System";
+    CSP_PROFILE_BEGIN(ProfilingTag);
     CSP_LOG_MSG(csp::common::LogLevel::Log, "SpaceSystem::EnterSpace");
 
     GetSpace(SpaceId)
@@ -373,10 +376,16 @@ void SpaceSystem::EnterSpace(const String& SpaceId, NullResultCallback Callback)
         .then(async::inline_scheduler(), FireEnterSpaceEvent(CurrentSpace))
         .then(async::inline_scheduler(), RefreshMultiplayerScopes())
         .then(async::inline_scheduler(),
+            [](const std::optional<csp::multiplayer::ErrorCode>& ErrorCode)
+            {
+                CSP_PROFILE_END("RefreshMultiplayerScopes");
+                return ErrorCode;
+            })
+        .then(async::inline_scheduler(),
             common::continuations::AssertRequestSuccessOrErrorFromMultiplayerErrorCode(Callback,
                 "SpaceSystem: EnterSpace, successfully refreshed multiplayer scopes", MakeInvalid<NullResult>(),
                 *csp::systems::SystemsManager::Get().GetLogSystem(), csp::common::LogLevel::Error))
-        .then(async::inline_scheduler(), systems::continuations::ReportSuccess(Callback, "Successfully entered space."))
+        .then(async::inline_scheduler(), systems::continuations::ReportSuccess(Callback, "Successfully entered space.", ProfilingTag))
         .then(async::inline_scheduler(),
             csp::common::continuations::InvokeIfExceptionInChain([&CurrentSpace = CurrentSpace](const std::exception& /*Except*/)
                 { CurrentSpace = {}; },
@@ -719,7 +728,7 @@ async::task<SpaceResult> SpaceSystem::GetSpace(const String& SpaceId)
     }
 
     csp::services::ResponseHandlerPtr ResponseHandler = GroupAPI->CreateHandler<SpaceResultCallback, SpaceResult, void, chs::GroupDto>(
-        [](const SpaceResult&) {}, nullptr, csp::web::EResponseCodes::ResponseOK, std::move(OnCompleteEvent));
+        [](const SpaceResult&) {}, nullptr, csp::web::EResponseCodes::ResponseOK, std::move(OnCompleteEvent), "GetGroupId (GetSpace)");
 
     static_cast<chs::GroupApi*>(GroupAPI)->groupsGroupIdGet(SpaceId, ResponseHandler);
 
@@ -849,8 +858,9 @@ async::task<SpaceResult> SpaceSystem::AddUserToSpace(const csp::common::String& 
 
             const csp::common::String& SpaceCode = Result.GetSpaceCode();
 
-            csp::services::ResponseHandlerPtr ResponseHandler = GroupAPI->CreateHandler<SpaceResultCallback, SpaceResult, void, chs::GroupDto>(
-                [](const SpaceResult&) {}, nullptr, csp::web::EResponseCodes::ResponseOK, std::move(*OnCompleteEvent.get()));
+            csp::services::ResponseHandlerPtr ResponseHandler
+                = GroupAPI->CreateHandler<SpaceResultCallback, SpaceResult, void, chs::GroupDto>([](const SpaceResult&) {}, nullptr,
+                    csp::web::EResponseCodes::ResponseOK, std::move(*OnCompleteEvent.get()), "GroupCodesUserPut (Add User To Space)");
 
             static_cast<chs::GroupApi*>(GroupAPI)->groupCodesGroupCodeUsersUserIdPut(SpaceCode, UserId, ResponseHandler);
         });

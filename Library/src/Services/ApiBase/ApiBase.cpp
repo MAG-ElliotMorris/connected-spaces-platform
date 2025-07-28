@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 #include "ApiBase.h"
+#include "Debug/Logging.h"
 
 namespace csp::services
 {
