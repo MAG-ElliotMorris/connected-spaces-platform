@@ -1,0 +1,1 @@
+docker build -t emsdk-tsd:3.1.57 .

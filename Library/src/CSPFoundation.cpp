@@ -15,7 +15,6 @@
  */
 #include "CSP/CSPFoundation.h"
 
-#include "../../Tools/WrapperGenerator/Output/C/generated_wrapper.h"
 #include "CSP/Common/StringFormat.h"
 #include "CSP/Common/fmt_Formatters.h"
 #include "CSP/Systems/ServiceStatus.h"
@@ -66,6 +65,10 @@
 #elif defined(CSP_WASM)
 #include <emscripten.h>
 #endif
+
+// Make sure the bindings module is pulled into the final link, (so the typescript generation has something to work off)
+extern "C" void __csp_force_link_bindings();
+static int _ = (__csp_force_link_bindings(), 0);
 
 namespace
 {

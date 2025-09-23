@@ -85,13 +85,13 @@ void LocalProcessChildUpdates(
     csp::common::IRealtimeEngine& RealtimeEngine, csp::common::List<SpaceEntity*>& RootHierarchyEntities, csp::multiplayer::SpaceEntity* Entity);
 
 // You should lock the entities mutex before calling this, and probably have processed entity operations
-void InitialiseEntityScripts(csp::common::List<SpaceEntity*>& Entities);
+void InitialiseEntityScripts(std::vector<std::unique_ptr<SpaceEntity>>& Entities);
 
 // ClientID is the ID that comes from the multiplayerConnection
-void DetermineScriptOwners(const csp::common::List<SpaceEntity*>& Entities, uint64_t ClientId);
+void DetermineScriptOwners(const std::vector<std::unique_ptr<SpaceEntity>>& Entities, uint64_t ClientId);
 
 // ClientID is the ID that comes from the multiplayerConnection
-void ClaimScriptOwnership(SpaceEntity* Entity, uint64_t ClientId);
+void ClaimScriptOwnership(const std::unique_ptr<SpaceEntity>& Entity, uint64_t ClientId);
 
 // Returns the current time, meant to be set as LastTickTime. If an offline engine, will not bother checking script ownership
 std::chrono::system_clock::time_point TickEntityScripts(std::recursive_mutex& EntitiesLock, csp::common::RealtimeEngineType RealtimeEngineType,

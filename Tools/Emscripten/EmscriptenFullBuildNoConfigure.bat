@@ -24,7 +24,7 @@ echo Unsupported configuration "%~1". Supported configurations are "debug" and "
 exit /b 1
 
 :ArgOk
-docker run -w /src -v %cd%:/src --rm emscripten/emsdk:%emsdk_version% emmake make -j 8 config=%~1_wasm
+docker run --rm -w /src -v %cd%:/src emsdk-tsd:3.1.57 emmake make -j8 config=%~1_wasm
 if %ERRORLEVEL% NEQ 0 (goto DockerError)
 
 python .\teamcity\GenerateReadMeWithLink.py

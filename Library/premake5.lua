@@ -41,7 +41,8 @@ if not Project then
         end
     
         -- Generate wrapper code
-        return WrapperGenerator.Generate()
+        --return WrapperGenerator.Generate()
+        return true
     end
     
     function Project.DefineProject()
@@ -251,11 +252,12 @@ if not Project then
                 "crypto"
             }
         filter "platforms:wasm"
-            rtti("Off")
+            rtti("On")
 
             defines {
                 "CSP_WASM",
-                "USE_STD_MALLOC=1"
+                "USE_STD_MALLOC=1",
+                --"EMSCRIPTEN_HAS_UNBOUND_TYPE_NAMES=0" --Wouldn't be neccesary if we turned on rtti ... which we should tbh
             }
 			
             buildoptions {
@@ -265,7 +267,7 @@ if not Project then
                 "-Wno-error=deprecated-declarations", --Don't error on deprecation warnings, this is because we use Uri a lot in our services generated code, which has deprecation warnings for some unused but still generated endpoints.
                 "-Wno-braced-scalar-init", -- Don't warn against doing stuff like `return {0}`, which we do in the interop output.
                 "-Wno-missing-field-initializers", -- Don't warn against missing field initializers, e.g. uninitialized fields in structs (because of the wrapper generator)
-                "-Wno-ignored-qualifiers" -- Don't warn against ignored qualifiers, e.g. "const qualifier on return type has no effect" (because of the wrapper generator)
+                "-Wno-ignored-qualifiers", -- Don't warn against ignored qualifiers, e.g. "const qualifier on return type has no effect" (because of the wrapper generator)
             }
 
             linkoptions { 
@@ -273,7 +275,7 @@ if not Project then
                 "-fwasm-exceptions",                                            -- enable native wasm exceptions
                 "-sPTHREAD_POOL_SIZE_STRICT=0",                                 -- disable thread pool and spin up threads when we need them
                 "-sEXPORTED_FUNCTIONS=['_malloc','_free']",                     -- force export _malloc and _free function
-                "-sEXPORT_ES6=1 -sMODULARIZE=1 -sEXPORT_NAME='createModule'",   -- export binary as an ES6 module
+                "-sEXPORT_ES6=1 -sMODULARIZE=1 -sEXPORT_NAME='createModule'",   -- export binary as an ES6 module, (mjs is so we can do the emit-tsd thing, it's weird, cause typescript generation compiles as node I dunno...)
                 "-sFETCH",                                                      -- enable Emscripten's Fetch API (needed for making REST calls to CHS)
                 "-sALLOW_TABLE_GROWTH=1",                                       -- needed for registering callbacks that are passed to Connected Spaces Platform
                 "-sWASM_BIGINT",                                                -- enable support for JavaScript's bigint (needed for 64-bit integer support)
@@ -298,6 +300,11 @@ if not Project then
                     "'mainScriptUrlOrBlob'," ..
                     "'wasmMemory'" ..
                 "]",
+                "-lembind",
+                "--emit-tsd", "ConnectedSpacesPlatform_WASM_OUT.d.ts",
+                "-gsource-map",                    -- keep full debug info, including names
+                "-sASSERTIONS=2",          -- runtime checks
+                "-sDEMANGLE_SUPPORT=1",
                 --"-sUSE_ES6_IMPORT_META=0"                                       -- disable use of import.meta as it is not yet supported everywhere
             }
             
@@ -312,15 +319,16 @@ if not Project then
             linkoptions { "-sENVIRONMENT='web,worker'" }   
 
         filter { "platforms:wasm", "configurations:*Debug*" }
+
             buildoptions {
-                "-gdwarf-5",
-                "-gseparate-dwarf"  -- preserve debug information (DWARF)
+                "-gdwarf-4",
+                "-gseparate-dwarf",  -- preserve debug information (DWARF)
             }
 
             linkoptions {
-                "-gdwarf-5",
+                "-gdwarf-4",
                 "-gseparate-dwarf", -- preserve debug information (DWARF)
-                "-sSEPARATE_DWARF_URL=../debug/ConnectedSpacesPlatform_WASM.wasm.debug.wasm"
+                "-sSEPARATE_DWARF_URL=../debug/ConnectedSpacesPlatform_WASM.wasm.debug.wasm",
             }
         filter { "platforms:wasm", "configurations:*Release*" }
             -- We want to reduce the size of Release builds as much as possible

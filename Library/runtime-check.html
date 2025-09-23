@@ -1,0 +1,66 @@
+!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>CSP Embind Runtime Check (ESM)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 1rem; }
+    pre { background: #111; color: #0f0; padding: 1rem; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Embind Runtime Check</h1>
+  <pre id="log"></pre>
+
+  <script type="module">
+    const out = document.getElementById('log');
+    const log = m => { out.textContent += m + '\n'; console.log(m); };
+
+    import createModule from './ConnectedSpacesPlatform_WASM.js'; // default export
+
+    try {
+      const Module = await createModule(); // your factory name
+      log("Module loaded.");
+      
+      const position = new Module.Vector3(0, 0, 0);
+      const rotation = new Module.Vector4(0, 0, 0, 1);
+      const scale    = new Module.Vector3(1, 1, 1);
+      const transform = new Module.SpaceTransform(position, rotation, scale);
+      
+      const engine = new Module.OfflineRealtimeEngine();
+        log('Created OfflineRealtimeEngine.');
+
+        // Test 1: callback API
+        log('Calling createEntity (callback)…');
+        await new Promise((resolve) => {
+          engine.createEntity(
+            'Entity_Callback',
+            transform,
+            undefined, // parent: bigint | undefined
+            (entity) => {
+              if (entity) {
+                log('createEntity callback: got entity (callback).');
+              } else {
+                log('createEntity callback: got null.');
+              }
+              resolve();
+            }
+          );
+        });
+        
+        // Test 2: promise API
+        log('Calling createEntityAsync (await)…');
+        const entity2 = await engine.createEntityAsync('Entity_Async', transform, undefined);
+        if (entity2) {
+          log('createEntityAsync resolved: got entity (promise).');
+        } else {
+          log('createEntityAsync resolved: null.');
+        }
+
+    } catch (e) {
+      log('createModule() failed: ' + (e?.message || e));
+    }
+  </script>
+</body>
+</html>

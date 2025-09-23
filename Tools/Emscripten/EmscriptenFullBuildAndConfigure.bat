@@ -48,24 +48,32 @@ if "%WITH_NODE%"=="1" (
     "modules/premake/bin/release/premake5" gmake2 --generate_wasm --wasm_with_node
 ) else (
     echo Building without Node.js support
+    echo BEFORE
     "modules/premake/bin/release/premake5" gmake2 --generate_wasm
+    echo AFTER
 )
 goto Wasm
 
 :Wasm
+echo AAA
 python Tools/Emscripten/ReplaceComSpec.py
 if %ERRORLEVEL% NEQ 0 (goto Error)
 
-docker run -w /src -v %cd%:/src --rm emscripten/emsdk:%emsdk_version% emmake make config=%~1_wasm clean
+docker run --rm -w /src -v %cd%:/src emsdk-tsd:3.1.57 emmake make config=%~1_wasm clean
+echo BBB
 if %ERRORLEVEL% NEQ 0 (goto DockerError)
 
-docker run -w /src -v %cd%:/src --rm emscripten/emsdk:%emsdk_version% emmake make -j 8 config=%~1_wasm
+docker run --rm -w /src -v %cd%:/src emsdk-tsd:3.1.57 emmake make -j8 config=%~1_wasm
+
+echo CCC
 if %ERRORLEVEL% NEQ 0 (goto DockerError)
 
 python .\teamcity\GenerateReadMeWithLink.py
+echo DDD
 if %ERRORLEVEL% NEQ 0 (goto Error)
 
 python .\teamcity\BuildNPMWebPackage.py --npm_publish_flag=False
+echo EEE
 if %ERRORLEVEL% NEQ 0 (goto Error) else (goto Success)
 
 :DockerError

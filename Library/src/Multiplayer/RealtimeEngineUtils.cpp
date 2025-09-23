@@ -177,17 +177,17 @@ void LocalProcessChildUpdates(
 }
 
 // You should lock the entities mutex before calling this, and probably have processed entity operations
-void InitialiseEntityScripts(csp::common::List<SpaceEntity*>& Entities)
+void InitialiseEntityScripts(std::vector<std::unique_ptr<SpaceEntity>>& Entities)
 {
     // Register all scripts for import
-    for (size_t i = 0; i < Entities.Size(); ++i)
+    for (size_t i = 0; i < Entities.size(); ++i)
     {
         EntityScript& Script = Entities[i]->GetScript();
         Script.RegisterSourceAsModule();
     }
 
     // Bind and invoke all scripts
-    for (size_t i = 0; i < Entities.Size(); ++i)
+    for (size_t i = 0; i < Entities.size(); ++i)
     {
         if (EntityScript& Script = Entities[i]->GetScript(); Script.HasEntityScriptComponent())
         {
@@ -197,7 +197,7 @@ void InitialiseEntityScripts(csp::common::List<SpaceEntity*>& Entities)
     }
 
     // Tell all scripts that all entities are now loaded
-    for (size_t i = 0; i < Entities.Size(); ++i)
+    for (size_t i = 0; i < Entities.size(); ++i)
     {
         EntityScript& Script = Entities[i]->GetScript();
         Script.PostMessageToScript(SCRIPT_MSG_ENTITIES_LOADED);
@@ -214,15 +214,15 @@ void InitialiseEntityScripts(csp::common::List<SpaceEntity*>& Entities)
 // when the owner will need to be re-assigned, although ownership will also
 // be claimed by anyone who interacts with an object
 //
-void DetermineScriptOwners(const csp::common::List<SpaceEntity*>& Entities, uint64_t ClientId)
+void DetermineScriptOwners(const std::vector<std::unique_ptr<SpaceEntity>>& Entities, uint64_t ClientId)
 {
-    for (size_t i = 0; i < Entities.Size(); ++i)
+    for (size_t i = 0; i < Entities.size(); ++i)
     {
         ClaimScriptOwnership(Entities[i], ClientId);
     }
 }
 
-void ClaimScriptOwnership(SpaceEntity* Entity, uint64_t ClientId)
+void ClaimScriptOwnership(const std::unique_ptr<SpaceEntity>& Entity, uint64_t ClientId)
 {
     EntityScript& Script = Entity->GetScript();
     Script.SetOwnerId(ClientId);

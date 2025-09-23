@@ -381,10 +381,13 @@ void OnlineRealtimeEngine::CreateAvatar(const csp::common::String& Name, const c
             }));
 }
 
-void OnlineRealtimeEngine::CreateEntity(const csp::common::String& Name, const csp::multiplayer::SpaceTransform& SpaceTransform,
-    const csp::common::Optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback)
+void OnlineRealtimeEngine::CreateEntity(const std::string& Name, const csp::multiplayer::SpaceTransform& SpaceTransform,
+    const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback)
 {
-    const std::function LocalIDCallback = [this, Name, SpaceTransform, ParentID, Callback, &LogSystem = this->LogSystem](
+    csp::common::Optional<uint64_t> ParentIDCommon
+        = ParentID.has_value() ? csp::common::Optional<uint64_t> { ParentID.value() } : csp::common::Optional<uint64_t> {};
+
+    const std::function LocalIDCallback = [this, Name, SpaceTransform, ParentIDCommon, Callback, &LogSystem = this->LogSystem](
                                               const signalr::value& Result, const std::exception_ptr& Except)
     {
         try
@@ -401,8 +404,8 @@ void OnlineRealtimeEngine::CreateEntity(const csp::common::String& Name, const c
         }
 
         auto ID = ParseGenerateObjectIDsResult(Result, *LogSystem);
-        auto* NewObject = new SpaceEntity(this, *ScriptRunner, LogSystem, SpaceEntityType::Object, ID, Name, SpaceTransform,
-            MultiplayerConnectionInst->GetClientId(), ParentID, true, true);
+        auto* NewObject = new SpaceEntity(this, *ScriptRunner, LogSystem, SpaceEntityType::Object, ID, Name.c_str(), SpaceTransform,
+            MultiplayerConnectionInst->GetClientId(), ParentIDCommon, true, true);
 
         const mcs::ObjectMessage Message = NewObject->GetStatePatcher()->CreateObjectMessage();
 
@@ -728,7 +731,7 @@ std::function<void(const signalr::value&, std::exception_ptr)> OnlineRealtimeEng
             // Ensure entity list is up to date
             ProcessPendingEntityOperations();
 
-            RealtimeEngineUtils::InitialiseEntityScripts(Entities);
+            // RealtimeEngineUtils::InitialiseEntityScripts(Entities);
             EnableEntityTick = true;
 
             // Start leader election
@@ -742,7 +745,7 @@ std::function<void(const signalr::value&, std::exception_ptr)> OnlineRealtimeEng
             }
             else
             {
-                RealtimeEngineUtils::DetermineScriptOwners(Entities, GetMultiplayerConnectionInstance()->GetClientId());
+                // RealtimeEngineUtils::DetermineScriptOwners(Entities, GetMultiplayerConnectionInstance()->GetClientId());
             }
 
             if (FetchCompleteCallback)
@@ -915,14 +918,14 @@ void OnlineRealtimeEngine::ClaimScriptOwnershipFromClient(uint64_t ClientId)
     {
         if (Entities[i]->GetScript().GetOwnerId() == ClientId)
         {
-            RealtimeEngineUtils::ClaimScriptOwnership(Entities[i], GetMultiplayerConnectionInstance()->GetClientId());
+            // RealtimeEngineUtils::ClaimScriptOwnership(Entities[i], GetMultiplayerConnectionInstance()->GetClientId());
         }
     }
 }
 
-void OnlineRealtimeEngine::ClaimScriptOwnership(SpaceEntity* Entity) const
+void OnlineRealtimeEngine::ClaimScriptOwnership(SpaceEntity* /* Entity*/) const
 {
-    RealtimeEngineUtils::ClaimScriptOwnership(Entity, GetMultiplayerConnectionInstance()->GetClientId());
+    // RealtimeEngineUtils::ClaimScriptOwnership(Entity, GetMultiplayerConnectionInstance()->GetClientId());
 }
 
 void OnlineRealtimeEngine::EnableLeaderElection()
@@ -1183,7 +1186,7 @@ void OnlineRealtimeEngine::ProcessPendingEntityOperations()
 
                 // since we are aiming to mutate the data for this entity remotely, we need to claim ownership over it
                 PendingEntity->SetOwnerId(MultiplayerConnectionInst->GetClientId());
-                RealtimeEngineUtils::ClaimScriptOwnership(PendingEntity, GetMultiplayerConnectionInstance()->GetClientId());
+                // RealtimeEngineUtils::ClaimScriptOwnership(PendingEntity, GetMultiplayerConnectionInstance()->GetClientId());
 
                 PendingEntities.Append(PendingEntity);
 

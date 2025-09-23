@@ -399,7 +399,7 @@ SpaceEntity* SpaceEntity::GetParentEntity() const { return Parent; }
 
 void SpaceEntity::CreateChildEntity(const csp::common::String& InName, const SpaceTransform& InSpaceTransform, EntityCreatedCallback Callback)
 {
-    EntitySystem->CreateEntity(InName, InSpaceTransform, GetId(), Callback);
+    EntitySystem->CreateEntity(InName.c_str(), InSpaceTransform, GetId(), Callback);
 }
 
 const csp::common::List<SpaceEntity*>* SpaceEntity::GetChildEntities() const { return &ChildEntities; }

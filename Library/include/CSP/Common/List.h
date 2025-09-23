@@ -262,7 +262,8 @@ public:
         }
 
         auto After = CurrentSize - Index;
-        std::memmove(ObjectArray + (Index + 1), ObjectArray + Index, sizeof(T) * After);
+        // CASTING AWAY UB BECAUSE THIS IS A PROTOTYPE! BAAAD
+        std::memmove(static_cast<void*>(ObjectArray + (Index + 1)), static_cast<const void*>(ObjectArray + Index), sizeof(T) * After);
         ++CurrentSize;
 
         T* ObjectPtr = &ObjectArray[0];

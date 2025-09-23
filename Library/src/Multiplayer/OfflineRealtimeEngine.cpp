@@ -83,6 +83,8 @@ namespace
 
 }
 
+OfflineRealtimeEngine::OfflineRealtimeEngine() { }
+
 OfflineRealtimeEngine::OfflineRealtimeEngine(
     const CSPSceneDescription& SceneDescription, csp::common::LogSystem& LogSystem, csp::common::IJSScriptRunner& RemoteScriptRunner)
     : OfflineRealtimeEngine(LogSystem, RemoteScriptRunner)
@@ -128,33 +130,43 @@ void csp::multiplayer::OfflineRealtimeEngine::CreateAvatar(const csp::common::St
 
     std::scoped_lock EntitiesLocker(EntitiesLock);
 
-    Entities.Append(NewAvatar.get());
-    Avatars.Append(NewAvatar.get());
+    Entities.push_back(std::move(NewAvatar));
+    csp::multiplayer::SpaceEntity* NewAvatarRef = std::prev(Entities.end())->get();
 
-    Callback(NewAvatar.release());
+    Avatars.push_back(NewAvatarRef);
+    Callback(NewAvatarRef);
 }
 
-void OfflineRealtimeEngine::CreateEntity(const csp::common::String& Name, const csp::multiplayer::SpaceTransform& Transform,
-    const csp::common::Optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback)
+void OfflineRealtimeEngine::CreateEntity(const std::string& Name, const csp::multiplayer::SpaceTransform& Transform,
+    const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback)
 {
+    if (Name == "PleaseThrow")
+    {
+        throw std::runtime_error("This should throw because your name was PleaseThrow!");
+    }
+
     // Some of our interfaces use int64_t ... real bugs here.
     uint64_t Id = NextId();
 
-    auto* NewEntity = new SpaceEntity { this, *ScriptRunner, LogSystem, SpaceEntityType::Object, Id, Name, Transform,
-        OfflineRealtimeEngine::LocalClientId(), ParentID, false, false };
+    csp::common::Optional<uint64_t> ParentIDCommon
+        = ParentID.has_value() ? csp::common::Optional<uint64_t> { ParentID.value() } : csp::common::Optional<uint64_t> {};
+
+    std::unique_ptr<SpaceEntity> NewEntity = std::make_unique<SpaceEntity>(this, *ScriptRunner, LogSystem, SpaceEntityType::Object, Id, Name.c_str(),
+        Transform, OfflineRealtimeEngine::LocalClientId(), ParentIDCommon, false, false);
 
     std::scoped_lock EntitiesLocker { EntitiesLock };
 
-    ResolveEntityHierarchy(NewEntity);
+    ResolveEntityHierarchy(NewEntity.get());
 
-    Entities.Append(NewEntity);
-    Objects.Append(NewEntity);
-
-    Callback(NewEntity);
+    Entities.push_back(std::move(NewEntity));
+    csp::multiplayer::SpaceEntity* NewEntityRef = std::prev(Entities.end())->get();
+    Objects.push_back(NewEntityRef);
+    Callback(NewEntityRef);
 }
 
-void OfflineRealtimeEngine::DestroyEntity(csp::multiplayer::SpaceEntity* Entity, csp::multiplayer::CallbackHandler Callback)
+void OfflineRealtimeEngine::DestroyEntity(csp::multiplayer::SpaceEntity* /* Entity*/, csp::multiplayer::CallbackHandler /* Callback*/)
 {
+    /*
     if (!Entities.Contains(Entity))
     {
         LogSystem->LogMsg(
@@ -205,6 +217,7 @@ void OfflineRealtimeEngine::DestroyEntity(csp::multiplayer::SpaceEntity* Entity,
     delete (Entity);
 
     Callback(true);
+    */
 }
 
 bool OfflineRealtimeEngine::AddEntityToSelectedEntities(csp::multiplayer::SpaceEntity* Entity)
@@ -214,12 +227,13 @@ bool OfflineRealtimeEngine::AddEntityToSelectedEntities(csp::multiplayer::SpaceE
         LogSystem->LogMsg(csp::common::LogLevel::Warning, "Attempting to add null entity to selected entities. Aborting operation.");
         return false;
     }
-
+    /*
     if (!SelectedEntities.Contains(Entity))
     {
         SelectedEntities.Append(Entity);
         return true;
     }
+    */
     return false;
 }
 
@@ -231,11 +245,13 @@ bool OfflineRealtimeEngine::RemoveEntityFromSelectedEntities(csp::multiplayer::S
         return false;
     }
 
+    /*
     if (SelectedEntities.Contains(Entity))
     {
         SelectedEntities.RemoveItem(Entity);
         return true;
     }
+    */
     return false;
 }
 
@@ -259,25 +275,31 @@ csp::multiplayer::SpaceEntity* OfflineRealtimeEngine::FindSpaceObject(const csp:
     return RealtimeEngineUtils::FindSpaceObject(*this, Name);
 }
 
-csp::multiplayer::SpaceEntity* OfflineRealtimeEngine::GetEntityByIndex(size_t EntityIndex) { return Entities[EntityIndex]; }
+csp::multiplayer::SpaceEntity* OfflineRealtimeEngine::GetEntityByIndex(size_t EntityIndex) { return Entities[EntityIndex].get(); }
 
 csp::multiplayer::SpaceEntity* OfflineRealtimeEngine::GetAvatarByIndex(size_t AvatarIndex) { return Avatars[AvatarIndex]; }
 
 csp::multiplayer::SpaceEntity* OfflineRealtimeEngine::GetObjectByIndex(size_t ObjectIndex) { return Objects[ObjectIndex]; }
 
-const csp::common::List<csp::multiplayer::SpaceEntity*>* OfflineRealtimeEngine::GetAllEntities() const { return &Entities; }
-
-size_t OfflineRealtimeEngine::GetNumEntities() const { return Entities.Size(); }
-
-size_t OfflineRealtimeEngine::GetNumAvatars() const { return Avatars.Size(); }
-
-size_t OfflineRealtimeEngine::GetNumObjects() const { return Objects.Size(); }
-
-const csp::common::List<csp::multiplayer::SpaceEntity*>* OfflineRealtimeEngine::GetRootHierarchyEntities() const { return &RootHierarchyEntities; }
-
-void OfflineRealtimeEngine::ResolveEntityHierarchy(csp::multiplayer::SpaceEntity* Entity)
+const csp::common::List<csp::multiplayer::SpaceEntity*>* OfflineRealtimeEngine::GetAllEntities() const
 {
-    RealtimeEngineUtils::ResolveEntityHierarchy(*this, RootHierarchyEntities, Entity);
+    return new csp::common::List<csp::multiplayer::SpaceEntity*> {};
+}
+
+size_t OfflineRealtimeEngine::GetNumEntities() const { return Entities.size(); }
+
+size_t OfflineRealtimeEngine::GetNumAvatars() const { return Avatars.size(); }
+
+size_t OfflineRealtimeEngine::GetNumObjects() const { return Objects.size(); }
+
+const csp::common::List<csp::multiplayer::SpaceEntity*>* OfflineRealtimeEngine::GetRootHierarchyEntities() const
+{
+    return new csp::common::List<csp::multiplayer::SpaceEntity*> {};
+}
+
+void OfflineRealtimeEngine::ResolveEntityHierarchy(csp::multiplayer::SpaceEntity* /*Entity*/)
+{
+    // RealtimeEngineUtils::ResolveEntityHierarchy(*this, RootHierarchyEntities, Entity);
 }
 
 void OfflineRealtimeEngine::FetchAllEntitiesAndPopulateBuffers(const csp::common::String&, csp::common::EntityFetchStartedCallback Callback)
@@ -288,7 +310,7 @@ void OfflineRealtimeEngine::FetchAllEntitiesAndPopulateBuffers(const csp::common
     RealtimeEngineUtils::InitialiseEntityScripts(Entities);
     RealtimeEngineUtils::DetermineScriptOwners(Entities, OfflineRealtimeEngine::LocalClientId());
 
-    EntityFetchCompleteCallback(static_cast<uint32_t>(Entities.Size()));
+    EntityFetchCompleteCallback(static_cast<uint32_t>(Entities.size()));
 }
 
 void OfflineRealtimeEngine::LockEntityUpdate() { return EntitiesLock.lock(); }
@@ -315,16 +337,17 @@ void OfflineRealtimeEngine::AddEntity(SpaceEntity* EntityToAdd)
 
     if (FindSpaceEntityById(EntityToAdd->GetId()) == nullptr)
     {
-        Entities.Append(EntityToAdd);
+        Entities.emplace_back(EntityToAdd);
+        SpaceEntity* EntityRef = std::prev(Entities.end())->get();
 
         switch (EntityToAdd->GetEntityType())
         {
         case SpaceEntityType::Avatar:
-            Avatars.Append(EntityToAdd);
+            Avatars.push_back(EntityRef);
             break;
 
         case SpaceEntityType::Object:
-            Objects.Append(EntityToAdd);
+            Objects.push_back(EntityRef);
             break;
         }
     }

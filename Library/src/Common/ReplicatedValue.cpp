@@ -387,7 +387,8 @@ const csp::common::Map<csp::common::String, ReplicatedValue>& ReplicatedValue::G
 
 size_t ReplicatedValue::GetSizeOfInternalValue() { return sizeof(InternalValue); }
 
-ReplicatedValue::InternalValue::InternalValue() { memset(this, 0x0, sizeof(InternalValue)); }
+// CASTING AWAY UB BECAUSE PROTOTYPE BAAAAD
+ReplicatedValue::InternalValue::InternalValue() { memset(static_cast<void*>(this), 0x0, sizeof(InternalValue)); }
 
 ReplicatedValue::InternalValue::~InternalValue() { }
 

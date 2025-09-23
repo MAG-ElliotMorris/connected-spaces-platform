@@ -25,6 +25,7 @@
 
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 
 class CSPEngine_OfflineRealtimeEngineTests_SelectEntity_Test;
@@ -62,6 +63,8 @@ public:
     /// @param RemoteScriptRunner csp::common::IJSScriptRunner& : Object capable of running a script.
     OfflineRealtimeEngine(
         const CSPSceneDescription& SceneDescription, csp::common::LogSystem& LogSystem, csp::common::IJSScriptRunner& RemoteScriptRunner);
+
+    OfflineRealtimeEngine();
 
     /// @brief OfflineRealtimeEngine constructor
     /// Creates an empty realtime engine.
@@ -104,8 +107,8 @@ public:
     /// entity is created as a root entity.
     /// @param Callback csp::multiplayer::EntityCreatedCallback : A callback that executes when the creation is complete,
     /// which will provide a non-owning pointer to the new SpaceEntity so that it can be used on the local client.
-    CSP_ASYNC_RESULT virtual void CreateEntity(const csp::common::String& Name, const csp::multiplayer::SpaceTransform& Transform,
-        const csp::common::Optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback) override;
+    CSP_ASYNC_RESULT virtual void CreateEntity(const std::string& Name, const csp::multiplayer::SpaceTransform& Transform,
+        const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback) override;
 
     /// @brief Destroy the specified entity.
     /// @param Entity csp::multiplayer::SpaceEntity : A non-owning pointer to the entity to be destroyed.
@@ -242,11 +245,11 @@ private:
     // May not be null
     csp::common::IJSScriptRunner* ScriptRunner;
 
-    csp::common::List<SpaceEntity*> Entities;
-    csp::common::List<SpaceEntity*> Avatars;
-    csp::common::List<SpaceEntity*> Objects;
-    csp::common::List<SpaceEntity*> SelectedEntities;
-    csp::common::List<SpaceEntity*> RootHierarchyEntities;
+    std::vector<std::unique_ptr<SpaceEntity>> Entities;
+    std::vector<SpaceEntity*> Avatars;
+    std::vector<SpaceEntity*> Objects;
+    std::vector<SpaceEntity*> SelectedEntities;
+    std::vector<SpaceEntity*> RootHierarchyEntities;
 
     std::recursive_mutex EntitiesLock;
 

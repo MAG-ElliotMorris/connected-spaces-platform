@@ -253,7 +253,8 @@ Vector4 Variant::GetVector4() const
 
 size_t Variant::GetSizeOfInternalValue() { return sizeof(InternalValue); }
 
-Variant::InternalValue::InternalValue() { memset(this, 0x0, sizeof(InternalValue)); }
+// CASTING AWAY UB BECAUSE PROTOTYPE VERY BAD MAN
+Variant::InternalValue::InternalValue() { memset(static_cast<void*>(this), 0x0, sizeof(InternalValue)); }
 
 Variant::InternalValue::~InternalValue() { }
 
