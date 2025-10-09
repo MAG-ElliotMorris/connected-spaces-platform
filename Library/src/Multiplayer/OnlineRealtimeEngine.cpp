@@ -314,9 +314,9 @@ std::function<async::task<std::tuple<signalr::value, std::exception_ptr>>(uint64
 
 std::function<void(std::tuple<async::shared_task<uint64_t>, async::task<void>>)> OnlineRealtimeEngine::CreateNewLocalAvatar(
     const csp::common::String& Name, const csp::common::String& UserId, const SpaceTransform& Transform, bool IsVisible,
-    const csp::common::String& AvatarId, AvatarState AvatarState, AvatarPlayMode AvatarPlayMode, EntityCreatedCallback Callback)
+    const csp::common::String& AvatarId, AvatarState AvatarState, AvatarPlayMode AvatarPlayMode, EntityCreatedCallback& Callback)
 {
-    return [Name, UserId, Transform, IsVisible, AvatarId, AvatarState, AvatarPlayMode, this, Callback](
+    return [Name, UserId, Transform, IsVisible, AvatarId, AvatarState, AvatarPlayMode, this, &Callback](
                std::tuple<async::shared_task<uint64_t>, async::task<void>> NetworkIdFromChain)
     {
         uint64_t NetworkId = std::get<0>(NetworkIdFromChain).get();
@@ -353,13 +353,13 @@ std::function<void(std::tuple<async::shared_task<uint64_t>, async::task<void>>)>
         {
             ElectionManager->OnLocalClientAdd(ReleasedAvatar, Avatars, *this->NetworkEventBus);
         }
-        Callback(ReleasedAvatar);
+        Callback.Call(ReleasedAvatar);
     };
 }
 
 void OnlineRealtimeEngine::CreateAvatar(const csp::common::String& Name, const csp::common::String& UserId,
     const csp::multiplayer::SpaceTransform& SpaceTransform, bool IsVisible, csp::multiplayer::AvatarState AvatarState,
-    const csp::common::String& AvatarId, csp::multiplayer::AvatarPlayMode AvatarPlayMode, csp::multiplayer::EntityCreatedCallback Callback)
+    const csp::common::String& AvatarId, csp::multiplayer::AvatarPlayMode AvatarPlayMode, csp::multiplayer::EntityCreatedCallback& Callback)
 {
     // Ask the server for an avatar Id via "GenerateObjectIds"
     async::shared_task<uint64_t> GetAvatarNetworkIdChain = RemoteGenerateNewAvatarId();
@@ -374,20 +374,20 @@ void OnlineRealtimeEngine::CreateAvatar(const csp::common::String& Name, const c
     async::when_all(GetAvatarNetworkIdChain, SerializeAndSendChain)
         .then(CreateNewLocalAvatar(Name, UserId, SpaceTransform, IsVisible, AvatarId, AvatarState, AvatarPlayMode, Callback))
         .then(csp::common::continuations::InvokeIfExceptionInChain(*LogSystem,
-            [Callback, LogSystem = this->LogSystem]([[maybe_unused]] const csp::common::continuations::ExpectedExceptionBase& exception)
+            [&Callback, LogSystem = this->LogSystem]([[maybe_unused]] const csp::common::continuations::ExpectedExceptionBase& exception)
             {
                 LogSystem->LogMsg(csp::common::LogLevel::Error, fmt::format("Failed to create Avatar. Exception: {}", exception.what()).c_str());
-                Callback(nullptr);
+                Callback.Call(nullptr);
             }));
 }
 
 void OnlineRealtimeEngine::CreateEntity(const std::string& Name, const csp::multiplayer::SpaceTransform& SpaceTransform,
-    const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback)
+    const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback& Callback)
 {
     csp::common::Optional<uint64_t> ParentIDCommon
         = ParentID.has_value() ? csp::common::Optional<uint64_t> { ParentID.value() } : csp::common::Optional<uint64_t> {};
 
-    const std::function LocalIDCallback = [this, Name, SpaceTransform, ParentIDCommon, Callback, &LogSystem = this->LogSystem](
+    const std::function LocalIDCallback = [this, Name, SpaceTransform, ParentIDCommon, &Callback, &LogSystem = this->LogSystem](
                                               const signalr::value& Result, const std::exception_ptr& Except)
     {
         try
@@ -400,7 +400,7 @@ void OnlineRealtimeEngine::CreateEntity(const std::string& Name, const csp::mult
         catch (const std::exception& e)
         {
             LogSystem->LogMsg(csp::common::LogLevel::Error, fmt::format("Failed to generate object ID. Exception: {}", e.what()).c_str());
-            Callback(nullptr);
+            Callback.Call(nullptr);
         }
 
         auto ID = ParseGenerateObjectIDsResult(Result, *LogSystem);
@@ -413,7 +413,7 @@ void OnlineRealtimeEngine::CreateEntity(const std::string& Name, const csp::mult
         Serializer.WriteValue(std::vector<mcs::ObjectMessage> { Message });
 
         const std::function<void(signalr::value, std::exception_ptr)> LocalSendCallback
-            = [this, Callback, NewObject, &LogSystem = this->LogSystem](const signalr::value& /*Result*/, const std::exception_ptr& Except)
+            = [this, &Callback, NewObject, &LogSystem = this->LogSystem](const signalr::value& /*Result*/, const std::exception_ptr& Except)
         {
             try
             {
@@ -425,7 +425,7 @@ void OnlineRealtimeEngine::CreateEntity(const std::string& Name, const csp::mult
             catch (const std::exception& e)
             {
                 LogSystem->LogMsg(csp::common::LogLevel::Error, fmt::format("Failed to create object. Exception: {}", e.what()).c_str());
-                Callback(nullptr);
+                Callback.Call(nullptr);
             }
 
             std::scoped_lock EntitiesLocker(*EntitiesLock);
@@ -434,7 +434,7 @@ void OnlineRealtimeEngine::CreateEntity(const std::string& Name, const csp::mult
 
             Entities.Append(NewObject);
             Objects.Append(NewObject);
-            Callback(NewObject);
+            Callback.Call(NewObject);
         };
 
         MultiplayerConnectionInst->GetSignalRConnection()->Invoke(
@@ -561,14 +561,16 @@ SpaceEntity* OnlineRealtimeEngine::FindSpaceObject(const csp::common::String& In
     return RealtimeEngineUtils::FindSpaceObject(*this, InName);
 }
 
-void OnlineRealtimeEngine::SetRemoteEntityCreatedCallback(EntityCreatedCallback Callback)
+void OnlineRealtimeEngine::SetRemoteEntityCreatedCallback(EntityCreatedCallback& /*Callback*/)
 {
+    /*
     if (RemoteSpaceEntityCreatedCallback)
     {
         LogSystem->LogMsg(common::LogLevel::Warning, "RemoteSpaceEntityCreatedCallback has already been set. Previous callback overwritten.");
     }
 
     RemoteSpaceEntityCreatedCallback = std::move(Callback);
+    */
 }
 
 bool OnlineRealtimeEngine::AddEntityToSelectedEntities(csp::multiplayer::SpaceEntity* Entity)
@@ -606,23 +608,6 @@ void OnlineRealtimeEngine::SetScriptLeaderReadyCallback(CallbackHandler Callback
     }
 }
 
-namespace
-{
-    void FireRemoteSpaceEntityCreatedCallback(
-        SpaceEntity* SpaceEntity, csp::multiplayer::EntityCreatedCallback RemoteSpaceEntityCreatedCallback, csp::common::LogSystem& LogSystem)
-    {
-        if (RemoteSpaceEntityCreatedCallback)
-        {
-            RemoteSpaceEntityCreatedCallback(SpaceEntity);
-        }
-        else
-        {
-            LogSystem.LogMsg(common::LogLevel::Warning,
-                "Called RemoteSpaceEntityCreatedCallback without it being set! Call SetRemoteEntityCreatedCallback first!");
-        }
-    }
-}
-
 SpaceEntity* OnlineRealtimeEngine::CreateRemotelyRetrievedEntity(const signalr::value& EntityMessage)
 {
     //  Create object message from signalr value
@@ -638,17 +623,17 @@ SpaceEntity* OnlineRealtimeEngine::CreateRemotelyRetrievedEntity(const signalr::
     return NewEntity;
 }
 
-void OnlineRealtimeEngine::OnObjectMessage(const signalr::value& Params)
+void OnlineRealtimeEngine::OnObjectMessage(const signalr::value& /*Params*/)
 {
     // Params is an array of all params sent, so grab the first
-    auto& EntityMessage = Params.as_array()[0];
+    // auto& EntityMessage = Params.as_array()[0];
 
-    SpaceEntity* NewEntity = CreateRemotelyRetrievedEntity(EntityMessage);
+    // SpaceEntity* NewEntity = CreateRemotelyRetrievedEntity(EntityMessage);
 
-    if (NewEntity)
-    {
-        FireRemoteSpaceEntityCreatedCallback(NewEntity, RemoteSpaceEntityCreatedCallback, *LogSystem);
-    }
+    // if (NewEntity)
+    //{
+    //  FireRemoteSpaceEntityCreatedCallback(NewEntity, RemoteSpaceEntityCreatedCallback, *LogSystem);
+    //}
 }
 
 void OnlineRealtimeEngine::OnObjectPatch(const signalr::value& Params)
@@ -715,8 +700,8 @@ std::function<void(const signalr::value&, std::exception_ptr)> OnlineRealtimeEng
 
         for (const auto& EntityMessage : Items)
         {
-            SpaceEntity* NewEntity = CreateRemotelyRetrievedEntity(EntityMessage);
-            FireRemoteSpaceEntityCreatedCallback(NewEntity, RemoteSpaceEntityCreatedCallback, *LogSystem);
+            [[maybe_unused]] SpaceEntity* NewEntity = CreateRemotelyRetrievedEntity(EntityMessage);
+            // FireRemoteSpaceEntityCreatedCallback(NewEntity, RemoteSpaceEntityCreatedCallback, *LogSystem);
         }
 
         int CurrentEntityCount = Skip + static_cast<int>(Items.size());

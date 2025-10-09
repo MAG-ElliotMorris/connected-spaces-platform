@@ -120,7 +120,7 @@ OfflineRealtimeEngine::~OfflineRealtimeEngine()
 
 void csp::multiplayer::OfflineRealtimeEngine::CreateAvatar(const csp::common::String& Name, const csp::common::String& UserId,
     const csp::multiplayer::SpaceTransform& Transform, bool IsVisible, csp::multiplayer::AvatarState State, const csp::common::String& AvatarId,
-    csp::multiplayer::AvatarPlayMode AvatarPlayMode, csp::multiplayer::EntityCreatedCallback Callback)
+    csp::multiplayer::AvatarPlayMode AvatarPlayMode, csp::multiplayer::EntityCreatedCallback& Callback)
 {
     // Some of our interfaces use int64_t ... real bugs here.
     const uint64_t Id = NextId();
@@ -134,11 +134,11 @@ void csp::multiplayer::OfflineRealtimeEngine::CreateAvatar(const csp::common::St
     csp::multiplayer::SpaceEntity* NewAvatarRef = std::prev(Entities.end())->get();
 
     Avatars.push_back(NewAvatarRef);
-    Callback(NewAvatarRef);
+    Callback.Call(NewAvatarRef);
 }
 
 void OfflineRealtimeEngine::CreateEntity(const std::string& Name, const csp::multiplayer::SpaceTransform& Transform,
-    const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback)
+    const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback& Callback)
 {
     if (Name == "PleaseThrow")
     {
@@ -161,7 +161,7 @@ void OfflineRealtimeEngine::CreateEntity(const std::string& Name, const csp::mul
     Entities.push_back(std::move(NewEntity));
     csp::multiplayer::SpaceEntity* NewEntityRef = std::prev(Entities.end())->get();
     Objects.push_back(NewEntityRef);
-    Callback(NewEntityRef);
+    Callback.Call(NewEntityRef);
 }
 
 void OfflineRealtimeEngine::DestroyEntity(csp::multiplayer::SpaceEntity* /* Entity*/, csp::multiplayer::CallbackHandler /* Callback*/)

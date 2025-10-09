@@ -44,7 +44,13 @@ namespace csp::multiplayer
 typedef std::function<void(bool)> CallbackHandler;
 
 // Callback that provides a non-owning pointer to a SpaceEntity object.
-typedef std::function<void(csp::multiplayer::SpaceEntity*)> EntityCreatedCallback;
+// typedef std::function<void(csp::multiplayer::SpaceEntity*)> EntityCreatedCallback;
+
+class EntityCreatedCallback
+{
+public:
+    virtual void Call(csp::multiplayer::SpaceEntity* SpaceEntity) = 0;
+};
 }
 
 namespace csp::common
@@ -127,7 +133,7 @@ public:
     /// which will provide a non-owning pointer to the new SpaceEntity so that it can be used on the local client.
     CSP_ASYNC_RESULT virtual void CreateAvatar(const csp::common::String& Name, const csp::common::String& UserId,
         const csp::multiplayer::SpaceTransform& SpaceTransform, bool IsVisible, csp::multiplayer::AvatarState AvatarState,
-        const csp::common::String& AvatarId, csp::multiplayer::AvatarPlayMode AvatarPlayMode, csp::multiplayer::EntityCreatedCallback Callback)
+        const csp::common::String& AvatarId, csp::multiplayer::AvatarPlayMode AvatarPlayMode, csp::multiplayer::EntityCreatedCallback& Callback)
     {
         // Marking parameters as unused by casting them to void to suppress warnings.
         // however this method is exported and the wrapper generator does not support that approach.
@@ -152,7 +158,7 @@ public:
     /// @param Callback csp::multiplayer::EntityCreatedCallback : A callback that executes when the creation is complete,
     /// which will provide a non-owning pointer to the new SpaceEntity so that it can be used on the local client.
     CSP_ASYNC_RESULT virtual void CreateEntity(const std::string& Name, const csp::multiplayer::SpaceTransform& SpaceTransform,
-        const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback)
+        const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback& Callback)
     {
         throw InvalidInterfaceUseError("Illegal use of \"abstract\" type.");
 

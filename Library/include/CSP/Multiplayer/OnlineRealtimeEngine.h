@@ -97,7 +97,7 @@ class CSP_API OnlineRealtimeEngine : public csp::common::IRealtimeEngine
 
 public:
     // Callback that will provide a pointer to a SpaceEntity object.
-    typedef std::function<void(SpaceEntity*)> EntityCreatedCallback;
+    // typedef std::function<void(SpaceEntity*)> EntityCreatedCallback;
 
     /// @brief OnlineRealtimeEngine constructor
     /// @param InMultiplayerConnection MultiplayerConnection* : the multiplayer connection to construct the OnlineRealtimeEngine with
@@ -131,7 +131,7 @@ public:
     CSP_ASYNC_RESULT virtual void CreateAvatar(const csp::common::String& Name, const csp::common::String& UserId,
         const csp::multiplayer::SpaceTransform& SpaceTransform, bool IsVisible, csp::multiplayer::AvatarState State,
         const csp::common::String& AvatarId, csp::multiplayer::AvatarPlayMode AvatarPlayMode,
-        csp::multiplayer::EntityCreatedCallback Callback) override;
+        csp::multiplayer::EntityCreatedCallback& Callback) override;
 
     /// @brief Create and add a SpaceEntity, with relevant default values.
     /// @param Name csp::common::String : The name of the newly created SpaceEntity.
@@ -141,7 +141,7 @@ public:
     /// @param Callback csp::multiplayer::EntityCreatedCallback : A callback that executes when the creation is complete,
     /// which will provide a non-owning pointer to the new SpaceEntity so that it can be used on the local client.
     CSP_ASYNC_RESULT virtual void CreateEntity(const std::string& Name, const csp::multiplayer::SpaceTransform& SpaceTransform,
-        const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback) override;
+        const std::optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback& Callback) override;
 
     /// @brief Destroy the specified entity.
     /// @param Entity csp::multiplayer::SpaceEntity : A non-owning pointer to the entity to be destroyed.
@@ -275,7 +275,7 @@ public:
     /// Only one EntityCreatedCallback may be registered, calling this function again will override whatever was previously set.
     ///
     /// @param Callback csp::multiplayer::EntityCreatedCallback : the callback to execute.
-    CSP_EVENT void SetRemoteEntityCreatedCallback(csp::multiplayer::EntityCreatedCallback Callback);
+    CSP_EVENT void SetRemoteEntityCreatedCallback(csp::multiplayer::EntityCreatedCallback& Callback);
 
     /// @brief Sets a callback to be executed when the script system is ready to run scripts.
     /// @param Callback CallbackHandler : the callback to execute.
@@ -376,7 +376,7 @@ private:
     using PatchMessageQueue = std::deque<signalr::value*>;
     using SpaceEntitySet = std::set<SpaceEntity*>;
 
-    EntityCreatedCallback RemoteSpaceEntityCreatedCallback;
+    // EntityCreatedCallback RemoteSpaceEntityCreatedCallback;
     CallbackHandler ScriptSystemReadyCallback;
 
     void GetEntitiesPaged(int Skip, int Limit, const std::function<void(const signalr::value&, std::exception_ptr)>& Callback);
@@ -419,7 +419,7 @@ private:
         AvatarState AvatarState, AvatarPlayMode AvatarPlayMode);
     std::function<void(std::tuple<async::shared_task<uint64_t>, async::task<void>>)> CreateNewLocalAvatar(const csp::common::String& Name,
         const csp::common::String& UserId, const SpaceTransform& Transform, bool IsVisible, const csp::common::String& AvatarId,
-        AvatarState AvatarState, AvatarPlayMode AvatarPlayMode, EntityCreatedCallback Callback);
+        AvatarState AvatarState, AvatarPlayMode AvatarPlayMode, EntityCreatedCallback& Callback);
     CSP_END_IGNORE
 
     class EntityScriptBinding* ScriptBinding;

@@ -397,7 +397,7 @@ bool SpaceEntity::GetIsPersistent() const { return IsPersistent; }
 
 SpaceEntity* SpaceEntity::GetParentEntity() const { return Parent; }
 
-void SpaceEntity::CreateChildEntity(const csp::common::String& InName, const SpaceTransform& InSpaceTransform, EntityCreatedCallback Callback)
+void SpaceEntity::CreateChildEntity(const csp::common::String& InName, const SpaceTransform& InSpaceTransform, EntityCreatedCallback& Callback)
 {
     EntitySystem->CreateEntity(InName.c_str(), InSpaceTransform, GetId(), Callback);
 }
