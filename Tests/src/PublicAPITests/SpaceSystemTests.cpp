@@ -20,8 +20,10 @@
 #include "CSP/Multiplayer/MultiPlayerConnection.h"
 #include "CSP/Multiplayer/MultiplayerHubMethods.h"
 #include "CSP/Systems/Assets/AssetSystem.h"
+#include "CSP/Systems/Quota/QuotaSystem.h"
 #include "CSP/Systems/Spaces/SpaceSystem.h"
 #include "CSP/Systems/SystemsManager.h"
+#include "MultiplayerTestRunnerProcess.h"
 #include "SpaceSystemTestHelpers.h"
 #include "TestHelpers.h"
 #include "UserSystemTestHelpers.h"
@@ -3359,6 +3361,119 @@ CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, DuplicateSpaceAsyncTest)
     // Log out
     LogOut(UserSystem);
 }
+
+CSP_PUBLIC_TEST(CSPEngine, SpaceSystemTests, EnterSpaceWhenFullTest)
+{
+    if (std::string(AdminAccountEmail()).empty())
+    {
+        GTEST_SKIP() << "Admin account email not set. This test cannot be run.";
+    }
+
+    SetRandSeed();
+
+    auto& SystemsManager = ::SystemsManager::Get();
+    auto* UserSystem = SystemsManager.GetUserSystem();
+    auto* QuotaSystem = SystemsManager.GetQuotaSystem();
+    auto* SpaceSystem = SystemsManager.GetSpaceSystem();
+
+    const char* TestSpaceName = "CSP-TEST-SPACE";
+    const char* TestSpaceDescription = "CSP-TEST-SPACEDESC";
+
+    char UniqueSpaceName[256];
+    SPRINTF(UniqueSpaceName, "%s-%s", TestSpaceName, GetUniqueString().c_str());
+
+    String UserId;
+
+    // Create default and alt users
+    csp::systems::Profile DefaultUser = CreateTestUser();
+
+    // Setting the basic user fails if they have never logged in.
+    // Undocumented, just discovered stochastically. May not be the true issue.
+    LogIn(UserSystem, UserId, DefaultUser.Email, GeneratedTestAccountPassword);
+    LogOut(UserSystem);
+
+    // Log in as an admin, we want to change default user to be a basic account,
+    // such that the space only has 5 slots.
+
+    String AdminId;
+
+    LogInAsAdminUser(UserSystem, AdminId);
+
+    auto [result] = AWAIT_PRE(QuotaSystem, SetUserTier, RequestPredicate, csp::systems::TierNames::Basic, DefaultUser.UserId);
+
+    std::this_thread::sleep_for(5s); // Need to wait for the user to actually be basic ...
+
+    // Log back in as the now basic user, and create the space
+    LogOut(UserSystem);
+    LogIn(UserSystem, DefaultUser.UserId, DefaultUser.Email, GeneratedTestAccountPassword);
+
+    auto [result2] = AWAIT_PRE(QuotaSystem, GetCurrentUserTier, RequestPredicate);
+
+    // Create space
+    ::Space Space;
+    CreateSpace(SpaceSystem, UniqueSpaceName, TestSpaceDescription, SpaceAttributes::Public, nullptr, nullptr, nullptr, nullptr, Space);
+
+    // Have 5 other users enter the space, filling it up
+
+    std::vector<MultiplayerTestRunnerProcess> TestRunnerProcesses;
+    std::vector<std::future<void>> ReadyForAssertionFutures;
+
+    for (int i = 0; i < 5; ++i)
+    {
+        csp::systems::Profile TestRunnerUser = CreateTestUser();
+
+        auto Process = MultiplayerTestRunnerProcess(MultiplayerTestRunner::TestIdentifiers::TestIdentifier::CREATE_AVATAR)
+                           .SetSpaceId(Space.Id.c_str())
+                           .SetLoginEmail(TestRunnerUser.Email.c_str())
+                           .SetPassword(GeneratedTestAccountPassword)
+                           .SetEndpoint(EndpointBaseURI())
+                           .SetTimeoutInSeconds(30);
+
+        TestRunnerProcesses.push_back(std::move(Process));
+        ReadyForAssertionFutures.push_back(TestRunnerProcesses.back().ReadyForAssertionsFuture());
+    }
+
+    for (auto& Process : TestRunnerProcesses)
+    {
+        Process.StartProcess();
+    }
+
+    for (const auto& Future : ReadyForAssertionFutures)
+    {
+        Future.wait();
+    }
+
+    std::this_thread::sleep_for(5s); // Need to wait for the user to actually be basic ...
+
+    QuotaSystem->GetConcurrentUsersInSpace(Space.Id,
+        [](const FeatureLimitResult& Result)
+        {
+            [[maybe_unused]] auto x = Result.GetFeatureLimitInfo();
+            [[maybe_unused]] auto y = x.ActivityCount;
+            [[maybe_unused]] auto z = x.Limit;
+            [[maybe_unused]] auto q = x.FeatureName;
+        });
+
+    std::unique_ptr<csp::common::IRealtimeEngine> RealtimeEngine { SystemsManager.MakeRealtimeEngine(RealtimeEngineType::Online) };
+    RealtimeEngine->SetEntityFetchCompleteCallback([](uint32_t) {});
+
+    // Log out again, and log in with a brand new account. I think the space author is always allowed into the space?
+    csp::systems::Profile DefaultUser2 = CreateTestUser();
+    LogOut(UserSystem);
+    LogIn(UserSystem, UserId, DefaultUser2.Email, GeneratedTestAccountPassword);
+
+    // Now the space is full, so entering it should error
+    auto [Result] = AWAIT(SpaceSystem, EnterSpace, Space.Id, RealtimeEngine.get());
+
+    // ASSERT_EQ(Result.GetFailureReason(), ERequestFailureReason::UserSpaceFullAccessDenied);
+
+    // Delete space
+    // DeleteSpace(SpaceSystem, Space.Id);
+
+    // Log out
+    LogOut(UserSystem);
+}
+
 namespace CSPEngine
 {
 

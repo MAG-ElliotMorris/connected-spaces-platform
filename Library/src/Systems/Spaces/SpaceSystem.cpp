@@ -607,6 +607,10 @@ void SpaceSystem::EnterSpace(const String& SpaceId, csp::common::IRealtimeEngine
                 [Callback, &CurrentSpace = CurrentSpace]([[maybe_unused]] const csp::common::continuations::ExpectedExceptionBase& Except)
                 {
                     CurrentSpace = {};
+
+                    // Clear the realtime engine pointer. The client very well may dispose of it on a failed enter space, which would cause crashes in
+                    // multiplayer callback
+                    csp::systems::SystemsManager::Get().GetMultiplayerConnection()->SetOnlineRealtimeEngine(nullptr);
                     Callback(MakeInvalid<SpaceResult>());
                 }));
 }

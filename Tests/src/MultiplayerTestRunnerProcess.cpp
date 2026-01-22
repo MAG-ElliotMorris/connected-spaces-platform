@@ -55,7 +55,7 @@ MultiplayerTestRunnerProcess& MultiplayerTestRunnerProcess::operator=(const Mult
     return *this;
 }
 
-MultiplayerTestRunnerProcess::MultiplayerTestRunnerProcess(MultiplayerTestRunnerProcess&& other)
+MultiplayerTestRunnerProcess::MultiplayerTestRunnerProcess(MultiplayerTestRunnerProcess&& other) noexcept
     : LoggedInPromise(std::exchange(other.LoggedInPromise, std::promise<void>()))
     , JoinedSpacePromise(std::exchange(other.JoinedSpacePromise, std::promise<void>()))
     , ReadyForAssertionsPromise(std::exchange(other.ReadyForAssertionsPromise, std::promise<void>()))
@@ -71,7 +71,7 @@ MultiplayerTestRunnerProcess::MultiplayerTestRunnerProcess(MultiplayerTestRunner
 {
 }
 
-MultiplayerTestRunnerProcess& MultiplayerTestRunnerProcess::operator=(MultiplayerTestRunnerProcess&& other)
+MultiplayerTestRunnerProcess& MultiplayerTestRunnerProcess::operator=(MultiplayerTestRunnerProcess&& other) noexcept
 {
     if (this != &other)
     {

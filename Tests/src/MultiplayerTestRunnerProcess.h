@@ -38,6 +38,10 @@ class Process;
  * test functions, it takes a good 5-10 seconds for processes to spin up and
  * become ready. Use this sparingly, and account for runtime fluctuations to
  * prevent undue flakiness.
+ *
+ * OTHER WARNING: Don't copy or move these objects after the process has started.
+ * If this becomes a common problem, we might want to make a change to this type to prevent it,
+ * but remember this is just a test utility.
  */
 class MultiplayerTestRunnerProcess
 {
@@ -52,8 +56,8 @@ public:
     MultiplayerTestRunnerProcess& operator=(const MultiplayerTestRunnerProcess& other);
 
     /* Moving steals all the internals, so any already running process stays running. */
-    MultiplayerTestRunnerProcess(MultiplayerTestRunnerProcess&& other);
-    MultiplayerTestRunnerProcess& operator=(MultiplayerTestRunnerProcess&& other);
+    MultiplayerTestRunnerProcess(MultiplayerTestRunnerProcess&& other) noexcept;
+    MultiplayerTestRunnerProcess& operator=(MultiplayerTestRunnerProcess&& other) noexcept;
 
     /* Chained methods (fluent interface pattern) to set the parameters.
        All of these are optional.
