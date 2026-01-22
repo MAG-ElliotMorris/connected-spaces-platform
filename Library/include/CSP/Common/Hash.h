@@ -34,6 +34,7 @@
 #include "CSP/Common/String.h"
 
 #include <functional>
+#include <string_view>
 
 namespace csp::common
 {
