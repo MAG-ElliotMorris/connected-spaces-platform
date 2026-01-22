@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🍰 🙌 New Features
 
 
 ## [6.21.0] - 2026-01-28_11-22-27
