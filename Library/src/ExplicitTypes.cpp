@@ -90,6 +90,8 @@ template class CSP_API csp::common::Array<csp::systems::TicketedEvent>;
 template class CSP_API csp::common::Array<csp::systems::TierFeatures>;
 template class CSP_API csp::common::Array<csp::systems::VariantOptionInfo>;
 template class CSP_API csp::common::Array<csp::systems::VersionMetadata>;
+template class CSP_API csp::common::Array<csp::systems::EAssetType>;
+template class CSP_API csp::common::Array<csp::systems::EAssetCollectionType>;
 
 // csp::common::List
 template class CSP_API csp::common::List<csp::common::String>;
