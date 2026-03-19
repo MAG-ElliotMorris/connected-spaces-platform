@@ -81,7 +81,7 @@ if not CSP then
         
         -- C++
         language "C++"
-        cppdialect "C++17"
+        cppdialect "C++20"
 		
 		flags {"FatalWarnings"}
 		warnings "Extra" -- corresponds to level /W4
@@ -118,6 +118,10 @@ if not CSP then
                 "NOMINMAX",
                 "_WINDOWS",
                 "CSP_WINDOWS"
+            }
+
+            buildoptions {
+                "/Zc:__cplusplus" -- Make MSVC report the correct __cplusplus value
             }
 
 			--[[
