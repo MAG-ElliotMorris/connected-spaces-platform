@@ -15,6 +15,7 @@
  */
 
 #include "CSP/Multiplayer/CSPSceneDescription.h"
+#include "CSP/Common/List.h"
 #include "Multiplayer/MCS/MCSSceneDescription.h"
 #include "Multiplayer/MCS/MCSTypes.h"
 #include "Multiplayer/SpaceEntityStatePatcher.h"
@@ -51,6 +52,21 @@ csp::common::Array<csp::multiplayer::SpaceEntity*> CSPSceneDescription::CreateEn
     }
 
     return Entities;
+}
+
+csp::common::String CSPSceneDescription::SerializeEntities(const csp::common::IRealtimeEngine& RealtimeEngine)
+{
+    const csp::common::List<csp::multiplayer::SpaceEntity*>* AllEntities = RealtimeEngine.GetAllEntities();
+
+    mcs::SceneDescription SceneDescription;
+    SceneDescription.Objects.reserve(AllEntities->Size());
+
+    for (size_t i = 0; i < AllEntities->Size(); ++i)
+    {
+        SceneDescription.Objects.push_back(SpaceEntityStatePatcher::CreateObjectMessageFromSpaceEntity(*(*AllEntities)[i]));
+    }
+
+    return csp::json::JsonSerializer::Serialize(SceneDescription);
 }
 
 }

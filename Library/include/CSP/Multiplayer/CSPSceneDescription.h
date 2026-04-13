@@ -45,6 +45,11 @@ public:
     CSP_NO_EXPORT csp::common::Array<csp::multiplayer::SpaceEntity*> CreateEntities(
         csp::common::IRealtimeEngine& RealtimeEngine, csp::common::LogSystem& LogSystem, csp::common::IJSScriptRunner& RemoteScriptRunner) const;
 
+    /// @brief Serializes all entities from a RealtimeEngine into a checkpoint-compatible JSON string.
+    /// @param RealtimeEngine const csp::common::IRealtimeEngine& : The engine containing the entities to serialize.
+    /// @return A JSON string containing the serialized entities in checkpoint format (data.objectMessages).
+    CSP_NO_EXPORT static csp::common::String SerializeEntities(const csp::common::IRealtimeEngine& RealtimeEngine);
+
 private:
     csp::common::String SceneDescriptionJson;
 };

@@ -178,6 +178,11 @@ public:
     [[nodiscard]] mcs::ObjectMessage CreateObjectMessage() const;
     [[nodiscard]] mcs::ObjectPatch CreateObjectPatch() const;
 
+    /// @brief Creates an ObjectMessage from a SpaceEntity by reading its current state directly.
+    /// Unlike CreateObjectMessage(), this does not require a StatePatcher and reads all properties
+    /// and components from the entity's public getters.
+    [[nodiscard]] static mcs::ObjectMessage CreateObjectMessageFromSpaceEntity(const SpaceEntity& Entity);
+
     [[nodiscard]] static std::unique_ptr<csp::multiplayer::SpaceEntity> NewFromObjectMessage(const mcs::ObjectMessage& Message,
         csp::common::IRealtimeEngine& RealtimeEngine, csp::common::IJSScriptRunner& ScriptRunner, csp::common::LogSystem& LogSystem);
 

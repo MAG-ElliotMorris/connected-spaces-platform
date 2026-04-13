@@ -537,3 +537,156 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, SceneDescriptionDeserializeM
 
     csp::CSPFoundation::Shutdown();
 }
+
+namespace
+{
+void ExpectEntitiesEqual(const csp::multiplayer::SpaceEntity& A, const csp::multiplayer::SpaceEntity& B)
+{
+    EXPECT_EQ(A.GetId(), B.GetId());
+    EXPECT_EQ(A.GetName(), B.GetName());
+    EXPECT_EQ(A.GetEntityType(), B.GetEntityType());
+    EXPECT_EQ(A.GetPosition(), B.GetPosition());
+    EXPECT_EQ(A.GetRotation(), B.GetRotation());
+    EXPECT_EQ(A.GetScale(), B.GetScale());
+    EXPECT_EQ(A.GetIsTransferable(), B.GetIsTransferable());
+    EXPECT_EQ(A.GetIsPersistent(), B.GetIsPersistent());
+    EXPECT_EQ(A.GetOwnerId(), B.GetOwnerId());
+    EXPECT_EQ(A.GetThirdPartyRef(), B.GetThirdPartyRef());
+    EXPECT_EQ(A.GetLockType(), B.GetLockType());
+    EXPECT_EQ(A.GetSelectingClientID(), B.GetSelectingClientID());
+    EXPECT_EQ(A.GetParentId().HasValue(), B.GetParentId().HasValue());
+
+    if (A.GetParentId().HasValue() && B.GetParentId().HasValue())
+    {
+        EXPECT_EQ(*A.GetParentId(), *B.GetParentId());
+    }
+
+    const auto* ComponentsA = A.GetComponents();
+    const auto* ComponentsB = B.GetComponents();
+    EXPECT_EQ(ComponentsA->Size(), ComponentsB->Size());
+
+    std::unique_ptr<const csp::common::Array<uint16_t>> KeysA(ComponentsA->Keys());
+
+    for (size_t i = 0; i < KeysA->Size(); ++i)
+    {
+        uint16_t Key = (*KeysA)[i];
+        EXPECT_TRUE(ComponentsB->HasKey(Key));
+
+        if (ComponentsB->HasKey(Key))
+        {
+            auto* CompA = (*ComponentsA)[Key];
+            auto* CompB = (*ComponentsB)[Key];
+
+            EXPECT_EQ(CompA->GetComponentType(), CompB->GetComponentType());
+
+            const auto* PropsA = CompA->GetProperties();
+            const auto* PropsB = CompB->GetProperties();
+            EXPECT_EQ(PropsA->Size(), PropsB->Size());
+
+            std::unique_ptr<const csp::common::Array<uint32_t>> PropKeysA(PropsA->Keys());
+
+            for (size_t j = 0; j < PropKeysA->Size(); ++j)
+            {
+                uint32_t PropKey = (*PropKeysA)[j];
+                EXPECT_TRUE(PropsB->HasKey(PropKey));
+
+                if (PropsB->HasKey(PropKey))
+                {
+                    EXPECT_EQ((*PropsA)[PropKey], (*PropsB)[PropKey]);
+                }
+            }
+        }
+    }
+}
+
+std::string ReadCheckpointFile(const char* Filename)
+{
+    auto FilePath = std::filesystem::absolute(Filename);
+    std::ifstream Stream { FilePath.u8string().c_str() };
+
+    if (!Stream)
+    {
+        return {};
+    }
+
+    std::stringstream SStream;
+    SStream << Stream.rdbuf();
+    return SStream.str();
+}
+}
+
+// Round-trip test: load checkpoint-empty.json into an OfflineRealtimeEngine, serialize, reload, and compare.
+CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, CheckpointRoundTripEmptyTest)
+{
+    std::string Json = ReadCheckpointFile("assets/checkpoint-empty.json");
+    ASSERT_FALSE(Json.empty());
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Load original checkpoint into engine
+    CSPSceneDescription OriginalDescription { csp::common::List<csp::common::String> { Json.c_str() } };
+    csp::multiplayer::OfflineRealtimeEngine OriginalEngine(OriginalDescription, LogSystem, ScriptRunner);
+
+    EXPECT_EQ(OriginalEngine.GetNumEntities(), 0);
+
+    // Serialize and reload
+    csp::common::String SavedJson = CSPSceneDescription::SerializeEntities(OriginalEngine);
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine ReloadedEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    EXPECT_EQ(ReloadedEngine.GetNumEntities(), 0);
+}
+
+// Round-trip test: load checkpoint-basic.json into an OfflineRealtimeEngine, serialize, reload, and compare.
+CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, CheckpointRoundTripBasicTest)
+{
+    std::string Json = ReadCheckpointFile("assets/checkpoint-basic.json");
+    ASSERT_FALSE(Json.empty());
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Load original checkpoint into engine
+    CSPSceneDescription OriginalDescription { csp::common::List<csp::common::String> { Json.c_str() } };
+    csp::multiplayer::OfflineRealtimeEngine OriginalEngine(OriginalDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(OriginalEngine.GetNumEntities(), 1);
+
+    // Serialize and reload
+    csp::common::String SavedJson = CSPSceneDescription::SerializeEntities(OriginalEngine);
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine ReloadedEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(ReloadedEngine.GetNumEntities(), 1);
+
+    ExpectEntitiesEqual(*OriginalEngine.GetEntityByIndex(0), *ReloadedEngine.GetEntityByIndex(0));
+}
+
+// Round-trip test: load checkpoint-parents.json into an OfflineRealtimeEngine, serialize, reload, and compare.
+CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, CheckpointRoundTripParentsTest)
+{
+    std::string Json = ReadCheckpointFile("assets/checkpoint-parents.json");
+    ASSERT_FALSE(Json.empty());
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Load original checkpoint into engine
+    CSPSceneDescription OriginalDescription { csp::common::List<csp::common::String> { Json.c_str() } };
+    csp::multiplayer::OfflineRealtimeEngine OriginalEngine(OriginalDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(OriginalEngine.GetNumEntities(), 3);
+
+    // Serialize and reload
+    csp::common::String SavedJson = CSPSceneDescription::SerializeEntities(OriginalEngine);
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine ReloadedEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(ReloadedEngine.GetNumEntities(), 3);
+
+    for (size_t i = 0; i < 3; ++i)
+    {
+        ExpectEntitiesEqual(*OriginalEngine.GetEntityByIndex(i), *ReloadedEngine.GetEntityByIndex(i));
+    }
+}

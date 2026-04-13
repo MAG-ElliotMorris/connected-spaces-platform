@@ -272,6 +272,34 @@ mcs::ObjectMessage SpaceEntityStatePatcher::CreateObjectMessage() const
         SpaceEntity.GetIsPersistent(), SpaceEntity.GetOwnerId(), Convert(SpaceEntity.GetParentId()), ComponentPacker.GetComponents() };
 }
 
+mcs::ObjectMessage SpaceEntityStatePatcher::CreateObjectMessageFromSpaceEntity(const csp::multiplayer::SpaceEntity& Entity)
+{
+    MCSComponentPacker ComponentPacker;
+
+    // Pack entity view-layer properties
+    ComponentPacker.WriteValue(SpaceEntityComponentKey::Name, Entity.GetName());
+    ComponentPacker.WriteValue(SpaceEntityComponentKey::Position, Entity.GetPosition());
+    ComponentPacker.WriteValue(SpaceEntityComponentKey::Rotation, Entity.GetRotation());
+    ComponentPacker.WriteValue(SpaceEntityComponentKey::Scale, Entity.GetScale());
+    ComponentPacker.WriteValue(SpaceEntityComponentKey::SelectedClientId, static_cast<int64_t>(Entity.GetSelectingClientID()));
+    ComponentPacker.WriteValue(SpaceEntityComponentKey::ThirdPartyRef, Entity.GetThirdPartyRef());
+    ComponentPacker.WriteValue(SpaceEntityComponentKey::LockType, static_cast<int64_t>(Entity.GetLockType()));
+
+    // Pack runtime components
+    const csp::common::Map<uint16_t, ComponentBase*>* Components = Entity.GetComponents();
+    std::unique_ptr<const csp::common::Array<uint16_t>> Keys(Components->Keys());
+
+    for (size_t i = 0; i < Keys->Size(); ++i)
+    {
+        uint16_t Key = (*Keys)[i];
+        ComponentBase* Component = (*Components)[Key];
+        ComponentPacker.WriteValue(Key, Component);
+    }
+
+    return mcs::ObjectMessage { Entity.GetId(), static_cast<uint64_t>(Entity.GetEntityType()), Entity.GetIsTransferable(),
+        Entity.GetIsPersistent(), Entity.GetOwnerId(), common::Convert(Entity.GetParentId()), ComponentPacker.GetComponents() };
+}
+
 mcs::ObjectPatch SpaceEntityStatePatcher::CreateObjectPatch() const
 {
     MCSComponentPacker ComponentPacker;

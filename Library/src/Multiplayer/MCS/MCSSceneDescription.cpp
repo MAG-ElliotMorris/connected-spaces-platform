@@ -179,6 +179,25 @@ void FromJson(const csp::json::JsonDeserializer& Deserializer, csp::multiplayer:
     Deserializer.ExitMember();
 }
 
+namespace
+{
+struct SceneDescriptionDataWrapper
+{
+    const std::vector<csp::multiplayer::mcs::ObjectMessage>& Objects;
+};
+}
+
+void ToJson(csp::json::JsonSerializer& Serializer, const SceneDescriptionDataWrapper& Obj)
+{
+    Serializer.SerializeMember("objectMessages", Obj.Objects);
+}
+
+void ToJson(csp::json::JsonSerializer& Serializer, const csp::multiplayer::mcs::SceneDescription& Obj)
+{
+    SceneDescriptionDataWrapper DataWrapper { Obj.Objects };
+    Serializer.SerializeMember("data", DataWrapper);
+}
+
 void ToJson(csp::json::JsonSerializer& Serializer, const csp::multiplayer::mcs::ItemComponentData& Obj)
 {
     std::visit(
