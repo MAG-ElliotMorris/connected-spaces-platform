@@ -50,6 +50,12 @@ public:
     /// @return A JSON string containing the serialized entities in checkpoint format (data.objectMessages).
     CSP_NO_EXPORT static csp::common::String SerializeEntities(const csp::common::IRealtimeEngine& RealtimeEngine);
 
+    /// @brief Serializes a full checkpoint by combining entities from the RealtimeEngine with the scene data
+    /// (group, prototypes, assetDetails, sequences, anchors) from the original checkpoint JSON.
+    /// @param RealtimeEngine const csp::common::IRealtimeEngine& : The engine containing the entities to serialize.
+    /// @return A JSON string containing the full checkpoint data.
+    CSP_NO_EXPORT csp::common::String SerializeCheckpoint(const csp::common::IRealtimeEngine& RealtimeEngine) const;
+
 private:
     csp::common::String SceneDescriptionJson;
 };

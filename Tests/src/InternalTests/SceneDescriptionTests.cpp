@@ -690,3 +690,176 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, CheckpointRoundTripParentsTe
         ExpectEntitiesEqual(*OriginalEngine.GetEntityByIndex(i), *ReloadedEngine.GetEntityByIndex(i));
     }
 }
+
+#include "CSP/Systems/MCS/MCSSceneData.h"
+
+// Full checkpoint round-trip: verifies that scene data (group, prototypes, assetDetails, sequences, anchors) survives serialization.
+CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, FullCheckpointRoundTripEmptyTest)
+{
+    std::string Json = ReadCheckpointFile("assets/checkpoint-empty.json");
+    ASSERT_FALSE(Json.empty());
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Parse original scene data
+    csp::systems::mcs::SceneData OriginalSceneData;
+    csp::json::JsonDeserializer::Deserialize(Json.c_str(), OriginalSceneData);
+
+    // Load entities into engine
+    CSPSceneDescription OriginalDescription { csp::common::List<csp::common::String> { Json.c_str() } };
+    csp::multiplayer::OfflineRealtimeEngine OriginalEngine(OriginalDescription, LogSystem, ScriptRunner);
+
+    EXPECT_EQ(OriginalEngine.GetNumEntities(), 0);
+
+    // Serialize full checkpoint
+    csp::common::String SavedJson = OriginalDescription.SerializeCheckpoint(OriginalEngine);
+
+    // Reload entities and verify
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine ReloadedEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    EXPECT_EQ(ReloadedEngine.GetNumEntities(), 0);
+
+    // Reload scene data and compare
+    csp::systems::mcs::SceneData ReloadedSceneData;
+    csp::json::JsonDeserializer::Deserialize(SavedJson.c_str(), ReloadedSceneData);
+
+    // Compare group
+    EXPECT_EQ(OriginalSceneData.Group.ToJson(), ReloadedSceneData.Group.ToJson());
+
+    // Compare counts (all empty)
+    EXPECT_EQ(OriginalSceneData.Prototypes.size(), ReloadedSceneData.Prototypes.size());
+    EXPECT_EQ(OriginalSceneData.AssetDetails.size(), ReloadedSceneData.AssetDetails.size());
+    EXPECT_EQ(OriginalSceneData.Sequences.size(), ReloadedSceneData.Sequences.size());
+    EXPECT_EQ(OriginalSceneData.Anchors.size(), ReloadedSceneData.Anchors.size());
+}
+
+// Full checkpoint round-trip: verifies entities AND scene data round-trip for checkpoint-basic.json.
+CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, FullCheckpointRoundTripBasicTest)
+{
+    std::string Json = ReadCheckpointFile("assets/checkpoint-basic.json");
+    ASSERT_FALSE(Json.empty());
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Parse original scene data
+    csp::systems::mcs::SceneData OriginalSceneData;
+    csp::json::JsonDeserializer::Deserialize(Json.c_str(), OriginalSceneData);
+
+    // Load entities into engine
+    CSPSceneDescription OriginalDescription { csp::common::List<csp::common::String> { Json.c_str() } };
+    csp::multiplayer::OfflineRealtimeEngine OriginalEngine(OriginalDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(OriginalEngine.GetNumEntities(), 1);
+
+    // Serialize full checkpoint
+    csp::common::String SavedJson = OriginalDescription.SerializeCheckpoint(OriginalEngine);
+
+    // Reload entities and verify
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine ReloadedEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(ReloadedEngine.GetNumEntities(), 1);
+    ExpectEntitiesEqual(*OriginalEngine.GetEntityByIndex(0), *ReloadedEngine.GetEntityByIndex(0));
+
+    // Reload scene data and compare
+    csp::systems::mcs::SceneData ReloadedSceneData;
+    csp::json::JsonDeserializer::Deserialize(SavedJson.c_str(), ReloadedSceneData);
+
+    // Compare group
+    EXPECT_EQ(OriginalSceneData.Group.ToJson(), ReloadedSceneData.Group.ToJson());
+
+    // Compare prototypes
+    ASSERT_EQ(OriginalSceneData.Prototypes.size(), ReloadedSceneData.Prototypes.size());
+    for (size_t i = 0; i < OriginalSceneData.Prototypes.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.Prototypes[i].ToJson(), ReloadedSceneData.Prototypes[i].ToJson());
+    }
+
+    // Compare asset details
+    ASSERT_EQ(OriginalSceneData.AssetDetails.size(), ReloadedSceneData.AssetDetails.size());
+    for (size_t i = 0; i < OriginalSceneData.AssetDetails.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.AssetDetails[i].ToJson(), ReloadedSceneData.AssetDetails[i].ToJson());
+    }
+
+    // Compare sequences
+    ASSERT_EQ(OriginalSceneData.Sequences.size(), ReloadedSceneData.Sequences.size());
+    for (size_t i = 0; i < OriginalSceneData.Sequences.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.Sequences[i].ToJson(), ReloadedSceneData.Sequences[i].ToJson());
+    }
+
+    // Compare anchors
+    ASSERT_EQ(OriginalSceneData.Anchors.size(), ReloadedSceneData.Anchors.size());
+}
+
+// Full checkpoint round-trip: verifies entities AND scene data round-trip for checkpoint-parents.json.
+CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, FullCheckpointRoundTripParentsTest)
+{
+    std::string Json = ReadCheckpointFile("assets/checkpoint-parents.json");
+    ASSERT_FALSE(Json.empty());
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Parse original scene data
+    csp::systems::mcs::SceneData OriginalSceneData;
+    csp::json::JsonDeserializer::Deserialize(Json.c_str(), OriginalSceneData);
+
+    // Load entities into engine
+    CSPSceneDescription OriginalDescription { csp::common::List<csp::common::String> { Json.c_str() } };
+    csp::multiplayer::OfflineRealtimeEngine OriginalEngine(OriginalDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(OriginalEngine.GetNumEntities(), 3);
+
+    // Serialize full checkpoint
+    csp::common::String SavedJson = OriginalDescription.SerializeCheckpoint(OriginalEngine);
+
+    // Reload entities and verify
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine ReloadedEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(ReloadedEngine.GetNumEntities(), 3);
+    for (size_t i = 0; i < 3; ++i)
+    {
+        ExpectEntitiesEqual(*OriginalEngine.GetEntityByIndex(i), *ReloadedEngine.GetEntityByIndex(i));
+    }
+
+    // Reload scene data and compare
+    csp::systems::mcs::SceneData ReloadedSceneData;
+    csp::json::JsonDeserializer::Deserialize(SavedJson.c_str(), ReloadedSceneData);
+
+    // Compare group
+    EXPECT_EQ(OriginalSceneData.Group.ToJson(), ReloadedSceneData.Group.ToJson());
+
+    // Compare prototypes
+    ASSERT_EQ(OriginalSceneData.Prototypes.size(), ReloadedSceneData.Prototypes.size());
+    for (size_t i = 0; i < OriginalSceneData.Prototypes.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.Prototypes[i].ToJson(), ReloadedSceneData.Prototypes[i].ToJson());
+    }
+
+    // Compare asset details
+    ASSERT_EQ(OriginalSceneData.AssetDetails.size(), ReloadedSceneData.AssetDetails.size());
+    for (size_t i = 0; i < OriginalSceneData.AssetDetails.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.AssetDetails[i].ToJson(), ReloadedSceneData.AssetDetails[i].ToJson());
+    }
+
+    // Compare sequences
+    ASSERT_EQ(OriginalSceneData.Sequences.size(), ReloadedSceneData.Sequences.size());
+    for (size_t i = 0; i < OriginalSceneData.Sequences.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.Sequences[i].ToJson(), ReloadedSceneData.Sequences[i].ToJson());
+    }
+
+    // Compare anchors
+    ASSERT_EQ(OriginalSceneData.Anchors.size(), ReloadedSceneData.Anchors.size());
+    for (size_t i = 0; i < OriginalSceneData.Anchors.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.Anchors[i].ToJson(), ReloadedSceneData.Anchors[i].ToJson());
+    }
+}

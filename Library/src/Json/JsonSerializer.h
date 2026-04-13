@@ -71,6 +71,33 @@ public:
         SerializeValue(Value);
     }
 
+    /// @brief Writes a pre-serialized raw JSON string as a member value.
+    /// @param Key const char* : The key for this member.
+    /// @param Json const char* : The raw JSON string to write as the value.
+    /// @param Type rapidjson::Type : The JSON type of the raw value (e.g. kObjectType, kArrayType).
+    void SerializeMemberRaw(const char* Key, const char* Json, rapidjson::Type Type)
+    {
+        Writer.String(Key);
+        Writer.RawValue(Json, strlen(Json), Type);
+    }
+
+    /// @brief Writes an array of DtoBase-derived objects as a member by calling ToJson() on each element.
+    /// @param Key const char* : The key for this member.
+    /// @param DtoVector const std::vector<T>& : The vector of DTOs to serialize.
+    template <typename T> void SerializeMemberDtoArray(const char* Key, const std::vector<T>& DtoVector)
+    {
+        Writer.String(Key);
+        Writer.StartArray();
+
+        for (const auto& Dto : DtoVector)
+        {
+            auto Json = Dto.ToJson();
+            Writer.RawValue(Json.c_str(), Json.Length(), rapidjson::kObjectType);
+        }
+
+        Writer.EndArray();
+    }
+
 private:
     rapidjson::StringBuffer Buffer;
     rapidjson::Writer<rapidjson::StringBuffer> Writer;

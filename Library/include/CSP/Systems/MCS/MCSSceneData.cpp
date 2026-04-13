@@ -18,7 +18,15 @@
 #include "Services/ApiBase/ApiBase.h"
 #include "Json/JsonSerializer.h"
 
-void ToJson(csp::json::JsonSerializer&, const csp::systems::mcs::SceneData&) { }
+void ToJson(csp::json::JsonSerializer& Serializer, const csp::systems::mcs::SceneData& Obj)
+{
+    auto GroupJson = Obj.Group.ToJson();
+    Serializer.SerializeMemberRaw("group", GroupJson.c_str(), rapidjson::kObjectType);
+    Serializer.SerializeMemberDtoArray("prototypes", Obj.Prototypes);
+    Serializer.SerializeMemberDtoArray("assetDetails", Obj.AssetDetails);
+    Serializer.SerializeMemberDtoArray("sequences", Obj.Sequences);
+    Serializer.SerializeMemberDtoArray("anchors", Obj.Anchors);
+}
 
 void FromJson(const csp::json::JsonDeserializer& Deserializer, csp::systems::mcs::SceneData& Obj)
 {
