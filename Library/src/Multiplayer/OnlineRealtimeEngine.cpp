@@ -16,6 +16,8 @@
 #include "CSP/Multiplayer/OnlineRealtimeEngine.h"
 
 #include "CSP/Common/List.h"
+#include "CSP/Multiplayer/CSPSceneDescription.h"
+#include "CSP/Systems/MCS/MCSSceneData.h"
 #include "CSP/Common/LoginState.h"
 #include "CSP/Common/StringFormat.h"
 #include "CSP/Common/Systems/Log/LogSystem.h"
@@ -1302,6 +1304,20 @@ void OnlineRealtimeEngine::SendPatches(const csp::common::List<SpaceEntity*> Pen
 
     MultiplayerConnectionInst->GetSignalRConnection()->Invoke(
         MultiplayerConnectionInst->GetMultiplayerHubMethods().Get(MultiplayerHubMethod::SEND_OBJECT_PATCHES), Serializer.Get(), LocalCallback);
+}
+
+csp::common::String OnlineRealtimeEngine::SnapshotEntities()
+{
+    std::scoped_lock EntitiesLocker(*EntitiesLock);
+    ProcessPendingEntityOperations();
+    return CSPSceneDescription::SerializeEntities(*this);
+}
+
+csp::common::String OnlineRealtimeEngine::SnapshotCheckpoint(const csp::systems::mcs::SceneData& SceneData)
+{
+    std::scoped_lock EntitiesLocker(*EntitiesLock);
+    ProcessPendingEntityOperations();
+    return CSPSceneDescription::SerializeCheckpoint(*this, SceneData);
 }
 
 void OnlineRealtimeEngine::ProcessPendingEntityOperations()

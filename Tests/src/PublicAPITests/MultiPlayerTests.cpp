@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "AssetSystemTestHelpers.h"
 #include "Awaitable.h"
 #include "CSP/CSPFoundation.h"
 #include "CSP/Common/CSPAsyncScheduler.h"
@@ -24,6 +25,7 @@
 #include "CSP/Multiplayer/OfflineRealtimeEngine.h"
 #include "CSP/Multiplayer/OnlineRealtimeEngine.h"
 #include "CSP/Multiplayer/SpaceEntity.h"
+#include "CSP/Systems/Assets/AssetSystem.h"
 #include "CSP/Systems/Script/ScriptSystem.h"
 #include "CSP/Systems/Spaces/Space.h"
 #include "CSP/Systems/SystemsManager.h"
@@ -40,9 +42,15 @@
 #include <array>
 #include <chrono>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <thread>
 
+#include "CSP/Multiplayer/CSPSceneDescription.h"
+#include "CSP/Systems/CSPSceneData.h"
+#include "CSP/Systems/MCS/MCSSceneData.h"
 #include "Mocks/SignalRConnectionMock.h"
+#include "Json/JsonSerializer.h"
 
 using namespace csp::multiplayer;
 using namespace std::chrono_literals;
@@ -1723,7 +1731,7 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, IsModifiableTest)
     CreateDefaultTestSpace(SpaceSystem, Space);
 
     std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> RealtimeEngine { SystemsManager.MakeOnlineRealtimeEngine() };
-    RealtimeEngine->SetEntityFetchCompleteCallback([](uint32_t) { });
+    RealtimeEngine->SetEntityFetchCompleteCallback([](uint32_t) {});
 
     // Enter space
     auto [EnterResult] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, Space.Id, RealtimeEngine.get());
@@ -1762,5 +1770,425 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, IsModifiableTest)
     DeleteSpace(SpaceSystem, Space.Id);
 
     // Log out
+    LogOut(UserSystem);
+}
+
+// Creates entities in an OnlineRealtimeEngine, snapshots them to a checkpoint, and verifies the
+// checkpoint can be loaded into an OfflineRealtimeEngine with matching entities.
+CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOfflineRoundTripTest)
+{
+    SetRandSeed();
+
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
+    auto* UserSystem = SystemsManager.GetUserSystem();
+    auto* SpaceSystem = SystemsManager.GetSpaceSystem();
+
+    csp::common::String UserId;
+    LogInAsNewTestUser(UserSystem, UserId);
+
+    csp::systems::Space Space;
+    CreateDefaultTestSpace(SpaceSystem, Space);
+
+    std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> OnlineEngine { SystemsManager.MakeOnlineRealtimeEngine() };
+    OnlineEngine->SetEntityFetchCompleteCallback([](uint32_t) {});
+
+    auto [EnterResult] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, Space.Id, OnlineEngine.get());
+    EXPECT_EQ(EnterResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+    EXPECT_EQ(OnlineEngine->GetNumEntities(), 0);
+
+    // Create entities in the online space
+    SpaceTransform Transform1
+        = { csp::common::Vector3 { 1.0f, 2.0f, 3.0f }, csp::common::Vector4 { 0.0f, 0.0f, 0.0f, 1.0f }, csp::common::Vector3 { 1, 1, 1 } };
+    SpaceTransform Transform2
+        = { csp::common::Vector3 { 4.0f, 5.0f, 6.0f }, csp::common::Vector4 { 0.0f, 0.0f, 0.0f, 1.0f }, csp::common::Vector3 { 2, 2, 2 } };
+
+    auto [Entity1] = AWAIT(OnlineEngine.get(), CreateEntity, "Entity1", Transform1, csp::common::Optional<uint64_t> {});
+    ASSERT_NE(Entity1, nullptr);
+
+    auto [Entity2] = AWAIT(OnlineEngine.get(), CreateEntity, "Entity2", Transform2, csp::common::Optional<uint64_t> {});
+    ASSERT_NE(Entity2, nullptr);
+
+    OnlineEngine->ProcessPendingEntityOperations();
+    ASSERT_EQ(OnlineEngine->GetNumEntities(), 2);
+
+    // Snapshot entities from the online engine
+    csp::common::String SavedJson = OnlineEngine->SnapshotEntities();
+
+    // Load the snapshot into an offline engine
+    class MockScriptRunner : public csp::common::IJSScriptRunner
+    {
+        bool RunScript(int64_t, const csp::common::String&) override { return false; }
+        void RegisterScriptBinding(csp::common::IScriptBinding*) override { }
+        void UnregisterScriptBinding(csp::common::IScriptBinding*) override { }
+        bool BindContext(int64_t) override { return false; }
+        bool ResetContext(int64_t) override { return false; }
+        void* GetContext(int64_t) override { return nullptr; }
+        void* GetModule(int64_t, const csp::common::String&) override { return nullptr; }
+        bool CreateContext(int64_t) override { return false; }
+        bool DestroyContext(int64_t) override { return false; }
+        void SetModuleSource(csp::common::String, csp::common::String) override { }
+        void ClearModuleSource(csp::common::String) override { }
+    };
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine OfflineEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(OfflineEngine.GetNumEntities(), 2);
+
+    // Verify entity data matches
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetName(), Entity1->GetName());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetPosition(), Entity1->GetPosition());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetRotation(), Entity1->GetRotation());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetScale(), Entity1->GetScale());
+
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(1)->GetName(), Entity2->GetName());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(1)->GetPosition(), Entity2->GetPosition());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(1)->GetRotation(), Entity2->GetRotation());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(1)->GetScale(), Entity2->GetScale());
+
+    auto [ExitResult] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+
+    DeleteSpace(SpaceSystem, Space.Id);
+    LogOut(UserSystem);
+}
+
+// Creates entities in an OnlineRealtimeEngine, snapshots a full checkpoint (entities + scene data),
+// and verifies it can be loaded into an OfflineRealtimeEngine with matching entities and scene data.
+CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotCheckpointToOfflineRoundTripTest)
+{
+    SetRandSeed();
+
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
+    auto* UserSystem = SystemsManager.GetUserSystem();
+    auto* SpaceSystem = SystemsManager.GetSpaceSystem();
+
+    csp::common::String UserId;
+    LogInAsNewTestUser(UserSystem, UserId);
+
+    csp::systems::Space Space;
+    CreateDefaultTestSpace(SpaceSystem, Space);
+
+    std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> OnlineEngine { SystemsManager.MakeOnlineRealtimeEngine() };
+    OnlineEngine->SetEntityFetchCompleteCallback([](uint32_t) {});
+
+    auto [EnterResult] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, Space.Id, OnlineEngine.get());
+    EXPECT_EQ(EnterResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+    // Create an entity in the online space
+    SpaceTransform Transform
+        = { csp::common::Vector3 { 1.0f, 2.0f, 3.0f }, csp::common::Vector4 { 0.0f, 0.0f, 0.0f, 1.0f }, csp::common::Vector3 { 1, 1, 1 } };
+
+    auto [CreatedEntity] = AWAIT(OnlineEngine.get(), CreateEntity, "SnapshotEntity", Transform, csp::common::Optional<uint64_t> {});
+    ASSERT_NE(CreatedEntity, nullptr);
+
+    OnlineEngine->ProcessPendingEntityOperations();
+    ASSERT_EQ(OnlineEngine->GetNumEntities(), 1);
+
+    // Create minimal scene data (in a real use case this would come from backend APIs)
+    csp::systems::mcs::SceneData SceneData;
+
+    // Snapshot a full checkpoint from the online engine
+    csp::common::String SavedJson = OnlineEngine->SnapshotCheckpoint(SceneData);
+
+    // Load the checkpoint into an offline engine
+    class MockScriptRunner : public csp::common::IJSScriptRunner
+    {
+        bool RunScript(int64_t, const csp::common::String&) override { return false; }
+        void RegisterScriptBinding(csp::common::IScriptBinding*) override { }
+        void UnregisterScriptBinding(csp::common::IScriptBinding*) override { }
+        bool BindContext(int64_t) override { return false; }
+        bool ResetContext(int64_t) override { return false; }
+        void* GetContext(int64_t) override { return nullptr; }
+        void* GetModule(int64_t, const csp::common::String&) override { return nullptr; }
+        bool CreateContext(int64_t) override { return false; }
+        bool DestroyContext(int64_t) override { return false; }
+        void SetModuleSource(csp::common::String, csp::common::String) override { }
+        void ClearModuleSource(csp::common::String) override { }
+    };
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine OfflineEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(OfflineEngine.GetNumEntities(), 1);
+
+    // Verify entity data matches
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetName(), CreatedEntity->GetName());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetPosition(), CreatedEntity->GetPosition());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetRotation(), CreatedEntity->GetRotation());
+    EXPECT_EQ(OfflineEngine.GetEntityByIndex(0)->GetScale(), CreatedEntity->GetScale());
+
+    // Verify scene data round-trips
+    csp::systems::mcs::SceneData ReloadedSceneData;
+    csp::json::JsonDeserializer::Deserialize(SavedJson.c_str(), ReloadedSceneData);
+
+    EXPECT_EQ(ReloadedSceneData.Prototypes.size(), 0);
+    EXPECT_EQ(ReloadedSceneData.AssetDetails.size(), 0);
+    EXPECT_EQ(ReloadedSceneData.Sequences.size(), 0);
+    EXPECT_EQ(ReloadedSceneData.Anchors.size(), 0);
+
+    auto [ExitResult] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+
+    DeleteSpace(SpaceSystem, Space.Id);
+    LogOut(UserSystem);
+}
+
+namespace
+{
+
+std::string JsonEscape(const char* s)
+{
+    std::string result;
+    for (const char* p = s; *p; ++p)
+    {
+        switch (*p)
+        {
+        case '"':
+            result += "\\\"";
+            break;
+        case '\\':
+            result += "\\\\";
+            break;
+        case '\n':
+            result += "\\n";
+            break;
+        case '\r':
+            result += "\\r";
+            break;
+        case '\t':
+            result += "\\t";
+            break;
+        default:
+            result += *p;
+            break;
+        }
+    }
+    return result;
+}
+
+csp::systems::mcs::SceneData BuildSceneDataForSpace(
+    csp::systems::SpaceSystem* SpaceSystem, csp::systems::AssetSystem* AssetSystem, const csp::common::String& SpaceId)
+{
+    csp::systems::mcs::SceneData SceneData;
+
+    // Get space info for the group DTO
+    auto [SpaceResult] = AWAIT_PRE(SpaceSystem, GetSpace, RequestPredicate, SpaceId);
+    EXPECT_EQ(SpaceResult.GetResultCode(), csp::systems::EResultCode::Success);
+    const auto& Space = SpaceResult.GetSpace();
+
+    // Populate Group DTO via FromJson (many fields are read-only, no setters)
+    {
+        std::string Json = "{";
+        Json += "\"id\":\"" + JsonEscape(Space.Id.c_str()) + "\",";
+        Json += "\"name\":\"" + JsonEscape(Space.Name.c_str()) + "\",";
+        Json += "\"groupOwnerId\":\"" + JsonEscape(Space.OwnerId.c_str()) + "\",";
+        Json += "\"createdBy\":\"" + JsonEscape(Space.CreatedBy.c_str()) + "\",";
+        Json += "\"createdAt\":\"" + JsonEscape(Space.CreatedAt.c_str()) + "\"";
+        Json += "}";
+        SceneData.Group.FromJson(Json.c_str());
+    }
+
+    // Fetch asset collections for this space
+    csp::common::Array<csp::systems::AssetCollection> AssetCollections;
+    GetAssetCollections(AssetSystem, const_cast<csp::systems::Space&>(Space), AssetCollections);
+
+    // Collect collection IDs
+    csp::common::Array<csp::common::String> CollectionIds(AssetCollections.Size());
+    for (size_t i = 0; i < AssetCollections.Size(); ++i)
+    {
+        CollectionIds[i] = AssetCollections[i].Id;
+    }
+
+    // Fetch all assets across all collections
+    csp::common::Array<csp::systems::Asset> Assets;
+    if (!CollectionIds.IsEmpty())
+    {
+        GetAssetsByCollectionIds(AssetSystem, CollectionIds, Assets);
+    }
+
+    // Convert AssetCollections to PrototypeDtos via FromJson
+    SceneData.Prototypes.resize(AssetCollections.Size());
+    for (size_t i = 0; i < AssetCollections.Size(); ++i)
+    {
+        const auto& AC = AssetCollections[i];
+        std::string Json = "{";
+        Json += "\"id\":\"" + JsonEscape(AC.Id.c_str()) + "\",";
+        Json += "\"name\":\"" + JsonEscape(AC.Name.c_str()) + "\",";
+        Json += "\"createdBy\":\"" + JsonEscape(AC.CreatedBy.c_str()) + "\",";
+        Json += "\"createdAt\":\"" + JsonEscape(AC.CreatedAt.c_str()) + "\",";
+        Json += "\"updatedBy\":\"" + JsonEscape(AC.UpdatedBy.c_str()) + "\",";
+        Json += "\"updatedAt\":\"" + JsonEscape(AC.UpdatedAt.c_str()) + "\"";
+
+        if (!AC.ParentId.IsEmpty())
+        {
+            Json += ",\"parentId\":\"" + JsonEscape(AC.ParentId.c_str()) + "\"";
+        }
+
+        if (!AC.PointOfInterestId.IsEmpty())
+        {
+            Json += ",\"pointOfInterestId\":\"" + JsonEscape(AC.PointOfInterestId.c_str()) + "\"";
+        }
+
+        if (!AC.SpaceId.IsEmpty())
+        {
+            Json += ",\"groupIds\":[\"" + JsonEscape(AC.SpaceId.c_str()) + "\"]";
+        }
+
+        if (AC.Tags.Size() > 0)
+        {
+            Json += ",\"tags\":[";
+            for (size_t t = 0; t < AC.Tags.Size(); ++t)
+            {
+                if (t > 0)
+                    Json += ",";
+                Json += "\"" + JsonEscape(AC.Tags[t].c_str()) + "\"";
+            }
+            Json += "]";
+        }
+
+        Json += "}";
+        SceneData.Prototypes[i].FromJson(Json.c_str());
+    }
+
+    // Convert Assets to AssetDetailDtos via FromJson
+    SceneData.AssetDetails.resize(Assets.Size());
+    for (size_t i = 0; i < Assets.Size(); ++i)
+    {
+        const auto& A = Assets[i];
+        std::string Json = "{";
+        Json += "\"prototypeId\":\"" + JsonEscape(A.AssetCollectionId.c_str()) + "\",";
+        Json += "\"id\":\"" + JsonEscape(A.Id.c_str()) + "\",";
+        Json += "\"fileName\":\"" + JsonEscape(A.FileName.c_str()) + "\",";
+        Json += "\"name\":\"" + JsonEscape(A.Name.c_str()) + "\",";
+        Json += "\"languageCode\":\"" + JsonEscape(A.LanguageCode.c_str()) + "\",";
+        Json += "\"uri\":\"" + JsonEscape(A.Uri.c_str()) + "\",";
+        Json += "\"checksum\":\"" + JsonEscape(A.Checksum.c_str()) + "\",";
+        Json += "\"mimeType\":\"" + JsonEscape(A.MimeType.c_str()) + "\",";
+        Json += "\"externalUri\":\"" + JsonEscape(A.ExternalUri.c_str()) + "\",";
+        Json += "\"externalMimeType\":\"" + JsonEscape(A.ExternalMimeType.c_str()) + "\",";
+        Json += "\"thirdPartyReferenceId\":\"" + JsonEscape(A.ThirdPartyPackagedAssetIdentifier.c_str()) + "\"";
+
+        if (A.Platforms.Size() > 0)
+        {
+            Json += ",\"supportedPlatforms\":[";
+            for (size_t p = 0; p < A.Platforms.Size(); ++p)
+            {
+                if (p > 0)
+                    Json += ",";
+                Json += "\"Default\"";
+            }
+            Json += "]";
+        }
+
+        if (A.Styles.Size() > 0)
+        {
+            Json += ",\"style\":[";
+            for (size_t s = 0; s < A.Styles.Size(); ++s)
+            {
+                if (s > 0)
+                    Json += ",";
+                Json += "\"" + JsonEscape(A.Styles[s].c_str()) + "\"";
+            }
+            Json += "]";
+        }
+
+        Json += "}";
+        SceneData.AssetDetails[i].FromJson(Json.c_str());
+    }
+
+    return SceneData;
+}
+
+} // anonymous namespace
+
+CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, EngineeringSpaceToSnapshot)
+{
+    SetRandSeed();
+
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
+    auto* UserSystem = SystemsManager.GetUserSystem();
+    auto* SpaceSystem = SystemsManager.GetSpaceSystem();
+    auto* AssetSystem = SystemsManager.GetAssetSystem();
+
+    csp::common::String UserId;
+    LogIn(UserSystem, UserId, "elliot.morris@magnopus.com", "PLACEHOLDERPASSWORD", true);
+
+    const csp::common::String SpaceId = "69de3002e81e8d4523106bc9";
+
+    // Build scene data from the space's server-side assets
+    csp::systems::mcs::SceneData SceneData = BuildSceneDataForSpace(SpaceSystem, AssetSystem, SpaceId);
+
+    // Enter space and snapshot entities
+    std::promise<bool> entityFetchPromise;
+    std::future<bool> entityFetchFuture = entityFetchPromise.get_future();
+
+    std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> OnlineEngine { SystemsManager.MakeOnlineRealtimeEngine() };
+    OnlineEngine->SetEntityFetchCompleteCallback([&entityFetchPromise](uint32_t) { entityFetchPromise.set_value(true); });
+    OnlineEngine->SetRemoteEntityCreatedCallback([](SpaceEntity* /*se*/) {});
+
+    auto [EnterResult] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, SpaceId, OnlineEngine.get());
+    EXPECT_EQ(EnterResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+    bool val = entityFetchFuture.get();
+    std::cout << val << std::endl;
+
+    // Snapshot a full checkpoint from the online engine
+    csp::common::String SavedJson = OnlineEngine->SnapshotCheckpoint(SceneData);
+
+    std::ofstream f("C:\\dev\\USOfficeSaveFromFile2.json");
+    f << SavedJson.c_str();
+
+    // Load the checkpoint into an offline engine
+    class MockScriptRunner : public csp::common::IJSScriptRunner
+    {
+        bool RunScript(int64_t, const csp::common::String&) override { return false; }
+        void RegisterScriptBinding(csp::common::IScriptBinding*) override { }
+        void UnregisterScriptBinding(csp::common::IScriptBinding*) override { }
+        bool BindContext(int64_t) override { return false; }
+        bool ResetContext(int64_t) override { return false; }
+        void* GetContext(int64_t) override { return nullptr; }
+        void* GetModule(int64_t, const csp::common::String&) override { return nullptr; }
+        bool CreateContext(int64_t) override { return false; }
+        bool DestroyContext(int64_t) override { return false; }
+        void SetModuleSource(csp::common::String, csp::common::String) override { }
+        void ClearModuleSource(csp::common::String) override { }
+    };
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Build list char-by-char to match what the web API does, getting paranoid chasing these bugs
+    csp::common::List<csp::common::String> charList;
+    const char* p = SavedJson.c_str();
+    while (*p)
+    {
+        charList.Append(csp::common::String(p, 1));
+        ++p;
+    }
+
+    csp::systems::CSPSceneData sceneData { charList };
+
+    // Exit the online space first
+    auto [ExitOnlineResult] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+    EXPECT_EQ(ExitOnlineResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+    // Enter offline space using the checkpoint
+    CSPSceneDescription ReloadedDescription { charList };
+    csp::multiplayer::OfflineRealtimeEngine OfflineEngine(ReloadedDescription, LogSystem, ScriptRunner);
+    OfflineEngine.SetEntityFetchCompleteCallback([](uint32_t) {});
+
+    auto [EnterOfflineResult] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, SpaceId, &OfflineEngine);
+    EXPECT_EQ(EnterOfflineResult.GetResultCode(), csp::systems::EResultCode::Success);
+
+    std::cout << "Offline engine entity count: " << OfflineEngine.GetNumEntities() << std::endl;
+
+    auto [ExitOfflineResult] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+
     LogOut(UserSystem);
 }

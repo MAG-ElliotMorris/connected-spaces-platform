@@ -67,6 +67,11 @@ namespace csp::common::events
 class Event;
 }
 
+namespace csp::systems::mcs
+{
+class SceneData;
+}
+
 /// @brief Namespace that encompasses everything in the multiplayer system
 namespace csp::multiplayer
 {
@@ -278,6 +283,21 @@ public:
 
     /// @brief Applies any pending changes to entities that have been marked for update.
     void ProcessPendingEntityOperations();
+
+    /// @brief Atomically flushes pending entity operations and serializes all entities to JSON.
+    /// Thread-safe: acquires EntitiesLock for the duration.
+    /// @note Calls ProcessPendingEntityOperations before serializing, ensuring entities received via SignalR
+    /// but not yet committed are included in the snapshot.
+    /// @return JSON string in objectMessages checkpoint format, suitable for constructing a CSPSceneDescription.
+    CSP_NO_EXPORT csp::common::String SnapshotEntities();
+
+    /// @brief Atomically flushes pending entity operations and serializes a full checkpoint to JSON.
+    /// Thread-safe: acquires EntitiesLock for the duration.
+    /// @note Calls ProcessPendingEntityOperations before serializing, ensuring entities received via SignalR
+    /// but not yet committed are included in the snapshot.
+    /// @param SceneData const csp::systems::mcs::SceneData& : The scene data to include in the checkpoint.
+    /// @return JSON string containing the full checkpoint data.
+    CSP_NO_EXPORT csp::common::String SnapshotCheckpoint(const csp::systems::mcs::SceneData& SceneData);
 
     /// @brief Sets a callback to be executed when a remote entity is created.
     /// To wait for local entities to be created, await the callback provided in the CreateObject/CreateAvatar methods.

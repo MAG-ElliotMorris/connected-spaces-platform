@@ -16,8 +16,8 @@
 #pragma once
 
 #include "Awaitable.h"
-#include "CSP/Common/Interfaces/IAuthContext.h"
 #include "CSP/CSPFoundation.h"
+#include "CSP/Common/Interfaces/IAuthContext.h"
 #include "CSP/Multiplayer/OnlineRealtimeEngine.h"
 #include "CSP/Systems/WebService.h"
 #include "PublicTestBase.h"
@@ -25,11 +25,11 @@
 
 #include <chrono>
 #include <functional>
+#include <future>
 #include <gtest/gtest.h>
 #include <iostream>
 #include <random>
 #include <thread>
-#include <future>
 
 using namespace std::chrono_literals;
 
@@ -213,15 +213,17 @@ inline const csp::ClientUserAgent& GetDefaultClientUserAgentInfo()
     return ClientHeaderInfo;
 }
 
-inline void InitialiseFoundationWithUserAgentInfo(const csp::common::String& EndpointRootURI, SignalRConnectionMock* SignalRMock = nullptr, csp::web::WebClient* WebClient = nullptr)
+inline void InitialiseFoundationWithUserAgentInfo(
+    const csp::common::String& EndpointRootURI, SignalRConnectionMock* SignalRMock = nullptr, csp::web::WebClient* WebClient = nullptr)
 {
-    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO_TESTS", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, nullptr);
+    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, nullptr);
 }
 
 inline void InitialiseFoundationWithUserAgentInfoAndFeatureFlags(const csp::common::String& EndpointRootURI,
-    const csp::common::Optional<csp::common::Array<csp::FeatureFlag>>& FeatureFlags, SignalRConnectionMock* SignalRMock = nullptr, csp::web::WebClient* WebClient = nullptr)
+    const csp::common::Optional<csp::common::Array<csp::FeatureFlag>>& FeatureFlags, SignalRConnectionMock* SignalRMock = nullptr,
+    csp::web::WebClient* WebClient = nullptr)
 {
-    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO_TESTS", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, FeatureFlags);
+    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, FeatureFlags);
 }
 
 inline void WaitForCallback(bool& CallbackCalled, int MaxTextTimeSeconds = 20)
@@ -250,7 +252,6 @@ template <typename T> inline bool WaitForFuture(const std::future<T>& Future, in
     auto Status = Future.wait_for(std::chrono::seconds(MaxWaitTimeSeconds));
     return Status == std::future_status::ready;
 }
-
 
 inline void ProcessPendingIfOnline(csp::common::IRealtimeEngine& RealtimeEngine)
 {

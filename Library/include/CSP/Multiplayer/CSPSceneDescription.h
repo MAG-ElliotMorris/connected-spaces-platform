@@ -18,6 +18,8 @@
 #include "CSP/Common/Interfaces/IRealtimeEngine.h"
 #include "CSP/Multiplayer/SpaceEntity.h"
 
+namespace csp::systems::mcs { class SceneData; }
+
 namespace csp::multiplayer
 {
 /// @brief CSPSceneDescription which represents all entities that exists for a scene.
@@ -55,6 +57,14 @@ public:
     /// @param RealtimeEngine const csp::common::IRealtimeEngine& : The engine containing the entities to serialize.
     /// @return A JSON string containing the full checkpoint data.
     CSP_NO_EXPORT csp::common::String SerializeCheckpoint(const csp::common::IRealtimeEngine& RealtimeEngine) const;
+
+    /// @brief Serializes a full checkpoint by combining entities from the RealtimeEngine with explicitly provided scene data.
+    /// This overload does not require a previously loaded checkpoint JSON, making it suitable for online spaces.
+    /// @param RealtimeEngine const csp::common::IRealtimeEngine& : The engine containing the entities to serialize.
+    /// @param SceneData const csp::systems::mcs::SceneData& : The scene data (group, prototypes, assetDetails, sequences, anchors).
+    /// @return A JSON string containing the full checkpoint data.
+    CSP_NO_EXPORT static csp::common::String SerializeCheckpoint(
+        const csp::common::IRealtimeEngine& RealtimeEngine, const csp::systems::mcs::SceneData& SceneData);
 
 private:
     csp::common::String SceneDescriptionJson;

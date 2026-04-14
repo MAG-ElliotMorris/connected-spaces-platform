@@ -25,7 +25,11 @@
       "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe\" CSP.windows.sln -t:CSPEngine_Tests -p:Configuration=DebugDLL -p:Platform=x64 -m)",
       "Bash(ls *.sln)",
       "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe\" ConnectedSpacesPlatform.sln -t:CSPEngine_Tests -p:Configuration=DebugDLL -p:Platform=x64 -m)",
-      "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe\" ConnectedSpacesPlatform.sln -t:Tests -p:Configuration=DebugDLL -p:Platform=x64 -m)"
+      "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe\" ConnectedSpacesPlatform.sln -t:Tests -p:Configuration=DebugDLL -p:Platform=x64 -m)",
+      "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Professional/MSBuild/Current/Bin/MSBuild.exe\" ConnectedSpacesPlatform.sln -t:ConnectedSpacesPlatform -p:Configuration=DebugDLL -p:Platform=x64 -verbosity:minimal)",
+      "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe\" ConnectedSpacesPlatform.sln -t:ConnectedSpacesPlatform -p:Configuration=DebugDLL -p:Platform=x64 -verbosity:minimal)",
+      "Bash(\"/c/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/amd64/MSBuild.exe\" ConnectedSpacesPlatform.sln -t:Tests -p:Configuration=DebugDLL -p:Platform=x64 -verbosity:minimal)",
+      "Bash(Tests/Binaries/x64/DebugDLL/Tests.exe --gtest_filter=\"*OnlineSnapshot*\")"
     ]
   }
 }

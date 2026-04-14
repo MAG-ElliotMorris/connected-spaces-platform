@@ -49,14 +49,14 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ObjectMessageSerializeTest)
     const bool TestIsPersistent = true;
     const uint64_t TestOwnerId = 0; // TODO: Set to 3 when this is added to the test files.
     const std::optional<uint64_t> TestParentId = 4;
-    std::map<mcs::PropertyKeyType, mcs::ItemComponentData> TestComponents;
-    TestComponents[0] = mcs::ItemComponentData { { 0ll } };
+    std::map<csp::multiplayer::mcs::PropertyKeyType, csp::multiplayer::mcs::ItemComponentData> TestComponents;
+    TestComponents[0] = csp::multiplayer::mcs::ItemComponentData { { 0ll } };
 
-    mcs::ObjectMessage Object { TestId, TestType, TestIsTransferable, TestIsPersistent, TestOwnerId, TestParentId, TestComponents };
+    csp::multiplayer::mcs::ObjectMessage Object { TestId, TestType, TestIsTransferable, TestIsPersistent, TestOwnerId, TestParentId, TestComponents };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(Object);
 
-    mcs::ObjectMessage DeserializedObject { 0, 0, false, false, 0, 0, {} };
+    csp::multiplayer::mcs::ObjectMessage DeserializedObject { 0, 0, false, false, 0, 0, {} };
     csp::json::JsonDeserializer::Deserialize(SerializedValue.c_str(), DeserializedObject);
 
     EXPECT_EQ(DeserializedObject, Object);
@@ -65,11 +65,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ObjectMessageSerializeTest)
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeBoolTest)
 {
     const bool TestValue = true;
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -78,11 +78,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeBo
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeInt64Test)
 {
     const int64_t TestValue = -10;
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -91,11 +91,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeIn
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeUInt64Test)
 {
     const uint64_t TestValue = 10;
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -104,11 +104,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeUI
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeDoubleTest)
 {
     const double TestValue = 10.1;
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -117,11 +117,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeDo
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeFloatTest)
 {
     const float TestValue = 10.1f;
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -130,11 +130,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeFl
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeStringTest)
 {
     const std::string TestValue = "Test";
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -143,11 +143,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeSt
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeStringEmptyTest)
 {
     const std::string TestValue = "";
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -156,11 +156,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeSt
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeFloatVectorTest)
 {
     const std::vector<float> TestValue = { 1.1f, 2.2f, 3.3f };
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -169,11 +169,11 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeFl
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeFloatVectorEmptyTest)
 {
     const std::vector<float> TestValue = {};
-    mcs::ItemComponentData ComponentValue { TestValue };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -181,13 +181,13 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeFl
 
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeStringMapTest)
 {
-    const std::map<std::string, mcs::ItemComponentData> TestValue
-        = { { "Key1", mcs::ItemComponentData { 1.1f } }, { "Key2", mcs::ItemComponentData { std::string { "Test" } } } };
-    mcs::ItemComponentData ComponentValue { TestValue };
+    const std::map<std::string, csp::multiplayer::mcs::ItemComponentData> TestValue
+        = { { "Key1", csp::multiplayer::mcs::ItemComponentData { 1.1f } }, { "Key2", csp::multiplayer::mcs::ItemComponentData { std::string { "Test" } } } };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -195,12 +195,12 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeSt
 
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeStringMapEmptyTest)
 {
-    const std::map<std::string, mcs::ItemComponentData> TestValue = {};
-    mcs::ItemComponentData ComponentValue { TestValue };
+    const std::map<std::string, csp::multiplayer::mcs::ItemComponentData> TestValue = {};
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -208,13 +208,13 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeSt
 
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeUIntMapTest)
 {
-    const std::map<uint16_t, mcs::ItemComponentData> TestValue
-        = { { 0, mcs::ItemComponentData { 1.1f } }, { 1, mcs::ItemComponentData { std::string { "Test" } } } };
-    mcs::ItemComponentData ComponentValue { TestValue };
+    const std::map<uint16_t, csp::multiplayer::mcs::ItemComponentData> TestValue
+        = { { 0, csp::multiplayer::mcs::ItemComponentData { 1.1f } }, { 1, csp::multiplayer::mcs::ItemComponentData { std::string { "Test" } } } };
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -222,12 +222,12 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeUI
 
 CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, ItemComponentDataSerializeUIntMapEmptyTest)
 {
-    const std::map<uint16_t, mcs::ItemComponentData> TestValue = {};
-    mcs::ItemComponentData ComponentValue { TestValue };
+    const std::map<uint16_t, csp::multiplayer::mcs::ItemComponentData> TestValue = {};
+    csp::multiplayer::mcs::ItemComponentData ComponentValue { TestValue };
 
     csp::common::String SerializedValue = csp::json::JsonSerializer::Serialize(ComponentValue);
 
-    mcs::ItemComponentData DeserializedValue {};
+    csp::multiplayer::mcs::ItemComponentData DeserializedValue {};
     csp::json::JsonDeserializer::Deserialize(SerializedValue, DeserializedValue);
 
     EXPECT_EQ(DeserializedValue, ComponentValue);
@@ -862,4 +862,61 @@ CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, FullCheckpointRoundTripParen
     {
         EXPECT_EQ(OriginalSceneData.Anchors[i].ToJson(), ReloadedSceneData.Anchors[i].ToJson());
     }
+}
+
+// Tests that the static SerializeCheckpoint overload (taking explicit SceneData) produces valid round-trip results.
+// Uses checkpoint-basic.json to source both entities and scene data, then re-serializes using the new static method.
+CSP_INTERNAL_TEST(CSPEngine, SceneDescriptionTests, StaticSerializeCheckpointRoundTripBasicTest)
+{
+    std::string Json = ReadCheckpointFile("assets/checkpoint-basic.json");
+    ASSERT_FALSE(Json.empty());
+
+    MockScriptRunner ScriptRunner;
+    csp::common::LogSystem LogSystem;
+
+    // Parse original scene data
+    csp::systems::mcs::SceneData OriginalSceneData;
+    csp::json::JsonDeserializer::Deserialize(Json.c_str(), OriginalSceneData);
+
+    // Load entities into engine
+    CSPSceneDescription OriginalDescription { csp::common::List<csp::common::String> { Json.c_str() } };
+    csp::multiplayer::OfflineRealtimeEngine OriginalEngine(OriginalDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(OriginalEngine.GetNumEntities(), 1);
+
+    // Serialize using the new static overload that takes SceneData directly
+    csp::common::String SavedJson = CSPSceneDescription::SerializeCheckpoint(OriginalEngine, OriginalSceneData);
+
+    // Reload entities and verify
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+    csp::multiplayer::OfflineRealtimeEngine ReloadedEngine(ReloadedDescription, LogSystem, ScriptRunner);
+
+    ASSERT_EQ(ReloadedEngine.GetNumEntities(), 1);
+    ExpectEntitiesEqual(*OriginalEngine.GetEntityByIndex(0), *ReloadedEngine.GetEntityByIndex(0));
+
+    // Reload scene data and compare
+    csp::systems::mcs::SceneData ReloadedSceneData;
+    csp::json::JsonDeserializer::Deserialize(SavedJson.c_str(), ReloadedSceneData);
+
+    EXPECT_EQ(OriginalSceneData.Group.ToJson(), ReloadedSceneData.Group.ToJson());
+
+    ASSERT_EQ(OriginalSceneData.Prototypes.size(), ReloadedSceneData.Prototypes.size());
+    for (size_t i = 0; i < OriginalSceneData.Prototypes.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.Prototypes[i].ToJson(), ReloadedSceneData.Prototypes[i].ToJson());
+    }
+
+    ASSERT_EQ(OriginalSceneData.AssetDetails.size(), ReloadedSceneData.AssetDetails.size());
+    for (size_t i = 0; i < OriginalSceneData.AssetDetails.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.AssetDetails[i].ToJson(), ReloadedSceneData.AssetDetails[i].ToJson());
+    }
+
+    ASSERT_EQ(OriginalSceneData.Sequences.size(), ReloadedSceneData.Sequences.size());
+    for (size_t i = 0; i < OriginalSceneData.Sequences.size(); ++i)
+    {
+        EXPECT_EQ(OriginalSceneData.Sequences[i].ToJson(), ReloadedSceneData.Sequences[i].ToJson());
+    }
+
+    ASSERT_EQ(OriginalSceneData.Anchors.size(), ReloadedSceneData.Anchors.size());
 }

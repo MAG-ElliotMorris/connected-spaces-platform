@@ -98,8 +98,35 @@ void ToJson(csp::json::JsonSerializer& Serializer, const FullCheckpointData& Obj
     Serializer.SerializeMember("data", Wrapper);
 }
 
+namespace
+{
+csp::multiplayer::mcs::SceneDescription BuildSceneDescriptionFromEngine(const csp::common::IRealtimeEngine& RealtimeEngine)
+{
+    const csp::common::List<csp::multiplayer::SpaceEntity*>* AllEntities = RealtimeEngine.GetAllEntities();
+
+    csp::multiplayer::mcs::SceneDescription SceneDescription;
+    SceneDescription.Objects.reserve(AllEntities->Size());
+
+    for (size_t i = 0; i < AllEntities->Size(); ++i)
+    {
+        SceneDescription.Objects.push_back(
+            csp::multiplayer::SpaceEntityStatePatcher::CreateObjectMessageFromSpaceEntity(*(*AllEntities)[i]));
+    }
+
+    return SceneDescription;
+}
+}
+
 namespace csp::multiplayer
 {
+
+csp::common::String CSPSceneDescription::SerializeCheckpoint(
+    const csp::common::IRealtimeEngine& RealtimeEngine, const csp::systems::mcs::SceneData& SceneData)
+{
+    auto SceneDescription = BuildSceneDescriptionFromEngine(RealtimeEngine);
+    FullCheckpointData Checkpoint { SceneDescription, SceneData };
+    return csp::json::JsonSerializer::Serialize(Checkpoint);
+}
 
 csp::common::String CSPSceneDescription::SerializeCheckpoint(const csp::common::IRealtimeEngine& RealtimeEngine) const
 {
@@ -107,20 +134,7 @@ csp::common::String CSPSceneDescription::SerializeCheckpoint(const csp::common::
     csp::systems::mcs::SceneData SceneData;
     csp::json::JsonDeserializer::Deserialize(SceneDescriptionJson.c_str(), SceneData);
 
-    // Build entity ObjectMessages from the engine
-    const csp::common::List<csp::multiplayer::SpaceEntity*>* AllEntities = RealtimeEngine.GetAllEntities();
-
-    mcs::SceneDescription SceneDescription;
-    SceneDescription.Objects.reserve(AllEntities->Size());
-
-    for (size_t i = 0; i < AllEntities->Size(); ++i)
-    {
-        SceneDescription.Objects.push_back(SpaceEntityStatePatcher::CreateObjectMessageFromSpaceEntity(*(*AllEntities)[i]));
-    }
-
-    // Combine and serialize
-    FullCheckpointData Checkpoint { SceneDescription, SceneData };
-    return csp::json::JsonSerializer::Serialize(Checkpoint);
+    return SerializeCheckpoint(RealtimeEngine, SceneData);
 }
 
 }
