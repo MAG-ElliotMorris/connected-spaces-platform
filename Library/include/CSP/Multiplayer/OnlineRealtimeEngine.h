@@ -77,6 +77,7 @@ namespace csp::multiplayer
 {
 
 class ClientElectionManager;
+class CSPSceneDescription;
 class MultiplayerConnection;
 class ISignalRConnection;
 class NetworkEventBus;
@@ -149,6 +150,8 @@ public:
     /// which will provide a non-owning pointer to the new SpaceEntity so that it can be used on the local client.
     CSP_ASYNC_RESULT virtual void CreateEntity(const csp::common::String& Name, const csp::multiplayer::SpaceTransform& SpaceTransform,
         const csp::common::Optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback) override;
+
+    CSP_ASYNC_RESULT virtual void CreateEntityFromExisting(SpaceEntity* ExistingEntity, csp::multiplayer::EntityCreatedCallback Callback);
 
     /// @brief Destroy the specified entity.
     /// @param Entity csp::multiplayer::SpaceEntity : A non-owning pointer to the entity to be destroyed.
@@ -298,6 +301,25 @@ public:
     /// @param SceneData const csp::systems::mcs::SceneData& : The scene data to include in the checkpoint.
     /// @return JSON string containing the full checkpoint data.
     CSP_NO_EXPORT csp::common::String SnapshotCheckpoint(const csp::systems::mcs::SceneData& SceneData);
+
+    /// @brief Callback type invoked when SetSpaceState has finished creating all entities described
+    /// by the scene description (including their round-trip through the server).
+    typedef std::function<void()> SetSpaceStateCallback;
+
+    /// @brief Loads space state from a CSPSceneDescription into this engine.
+    /// Mirrors the CSPSceneDescription parameter accepted by the OfflineRealtimeEngine constructor,
+    /// allowing an online engine to be hydrated from a snapshot previously produced by
+    /// SnapshotEntities or SnapshotCheckpoint.
+    ///
+    /// Asynchronous: each deserialized entity is created on the server via
+    /// CreateEntityFromExisting, which is itself async. This function returns immediately; the
+    /// supplied callback fires on the SignalR worker thread after the last entity has been
+    /// created and the engine's hierarchy has been resolved. The callback fires immediately (on
+    /// the calling thread) if the scene description contains zero entities.
+    ///
+    /// @param SceneDescription const CSPSceneDescription& : scene description produced by a prior snapshot.
+    /// @param Callback SetSpaceStateCallback : invoked once all entities are created.
+    void SetSpaceState(const CSPSceneDescription& SceneDescription, SetSpaceStateCallback Callback);
 
     /// @brief Sets a callback to be executed when a remote entity is created.
     /// To wait for local entities to be created, await the callback provided in the CreateObject/CreateAvatar methods.

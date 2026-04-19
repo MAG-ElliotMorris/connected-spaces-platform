@@ -166,6 +166,45 @@ SpaceEntity::SpaceEntity(csp::common::IRealtimeEngine* EntitySystem, csp::common
     this->ParentId = ParentId;
 }
 
+SpaceEntity::SpaceEntity(const SpaceEntity& Other)
+    : EntitySystem(Other.EntitySystem)
+    , Type(Other.Type)
+    , Id(Other.Id)
+    , IsTransferable(Other.IsTransferable)
+    , IsPersistent(Other.IsPersistent)
+    , OwnerId(Other.OwnerId)
+    , ParentId(Other.ParentId)
+    , Name(Other.Name)
+    , Transform(Other.Transform)
+    , ThirdPartyRef(Other.ThirdPartyRef)
+    , SelectedId(Other.SelectedId)
+    , Parent(nullptr)
+    , EntityLock(Other.EntityLock)
+    , NextComponentId(Other.NextComponentId)
+    , Script(this, Other.EntitySystem, Other.Script.GetScriptRunner(), Other.LogSystem)
+    , ScriptInterface(std::make_unique<EntityScriptInterface>(this))
+    , LogSystem(Other.LogSystem)
+    , StatePatcher(nullptr)
+{
+    // Components, hierarchy (Parent / ChildEntities), and user callbacks are not copied — a
+    // SpaceEntity's components own raw pointers and their clone semantics are component-specific;
+    // hierarchy links refer to other entities that the copy is not part of. Callers that need
+    // components or a hierarchy should populate them explicitly after copy construction.
+
+    // Mirror the second constructor: build a fresh state patcher against this new entity so it
+    // participates in the engine's patch model (if any) as its own object rather than aliasing
+    // Other's patcher.
+    if (EntitySystem != nullptr)
+    {
+        StatePatcher = std::unique_ptr<SpaceEntityStatePatcher>(EntitySystem->MakeStatePatcher(*this));
+
+        if (StatePatcher)
+        {
+            StatePatcher->RegisterProperties(CreateReplicatedProperties());
+        }
+    }
+}
+
 SpaceEntity::~SpaceEntity() { }
 
 uint64_t SpaceEntity::GetId() const { return Id; }
@@ -738,6 +777,8 @@ std::chrono::milliseconds SpaceEntity::GetTimeOfLastPatch() { return StatePatche
 // Not dirtyable because it is a mandatory type in ObjectMessage. It's sent no matter what.
 // It may still be nicer to make this in-pattern and do loopbacks like the dirtyable props, but no formal need.
 void SpaceEntity::SetOwnerId(uint64_t InOwnerId) { OwnerId = InOwnerId; }
+
+void SpaceEntity::SetId(uint64_t InId) { Id = InId; }
 
 void SpaceEntity::SetParentIdDirect(csp::common::Optional<uint64_t> Value, bool CallNotifyingCallback)
 {

@@ -16,12 +16,11 @@
 #include "CSP/Multiplayer/OnlineRealtimeEngine.h"
 
 #include "CSP/Common/List.h"
-#include "CSP/Multiplayer/CSPSceneDescription.h"
-#include "CSP/Systems/MCS/MCSSceneData.h"
 #include "CSP/Common/LoginState.h"
 #include "CSP/Common/StringFormat.h"
 #include "CSP/Common/Systems/Log/LogSystem.h"
 #include "CSP/Common/fmt_Formatters.h"
+#include "CSP/Multiplayer/CSPSceneDescription.h"
 #include "CSP/Multiplayer/Components/AvatarSpaceComponent.h"
 #include "CSP/Multiplayer/ContinuationUtils.h"
 #include "CSP/Multiplayer/MultiPlayerConnection.h"
@@ -29,6 +28,7 @@
 #include "CSP/Multiplayer/Script/EntityScript.h"
 #include "CSP/Multiplayer/Script/EntityScriptMessages.h"
 #include "CSP/Multiplayer/SpaceEntity.h"
+#include "CSP/Systems/MCS/MCSSceneData.h"
 #include "Events/EventListener.h"
 #include "Events/EventSystem.h"
 #include "MCS/MCSTypes.h"
@@ -298,8 +298,8 @@ std::function<void(uint64_t)> OnlineRealtimeEngine::CreateNewLocalAvatar(const c
          * Note also however, that we don't double fetch the network ID, which is the main cost of constructing these things anyhow.
          * (Stricter interface segregation for our serializers would also have solved this problem, but only in the local sense)
          */
-        auto NewAvatar = RealtimeEngineUtils::BuildNewAvatar(UserId, *this, *ScriptRunner, *LogSystem, NetworkId, Name,
-            Transform, IsVisible, MultiplayerConnectionInst->GetClientId(), false, false, AvatarId, AvatarState, AvatarPlayMode, LocomotionModel);
+        auto NewAvatar = RealtimeEngineUtils::BuildNewAvatar(UserId, *this, *ScriptRunner, *LogSystem, NetworkId, Name, Transform, IsVisible,
+            MultiplayerConnectionInst->GetClientId(), false, false, AvatarId, AvatarState, AvatarPlayMode, LocomotionModel);
 
         std::scoped_lock EntitiesLocker(*EntitiesLock);
         // Release to vague ownership. True ownership is blurry here. It could be shared between both Entities and Objects, or just owned by
@@ -358,6 +358,85 @@ void OnlineRealtimeEngine::CreateEntity(const csp::common::String& Name, const c
         auto ID = ParseGenerateObjectIDsResult(Result, *LogSystem);
         auto* NewObject = new SpaceEntity(this, *ScriptRunner, LogSystem, SpaceEntityType::Object, ID, Name, SpaceTransform,
             MultiplayerConnectionInst->GetClientId(), ParentID, true, true);
+
+        const mcs::ObjectMessage Message = NewObject->GetStatePatcher()->CreateObjectMessage();
+
+        SignalRSerializer Serializer;
+        Serializer.WriteValue(std::vector<mcs::ObjectMessage> { Message });
+
+        const std::function<void(signalr::value, std::exception_ptr)> LocalSendCallback
+            = [this, Callback, NewObject, &LogSystem = this->LogSystem](const signalr::value& /*Result*/, const std::exception_ptr& Except)
+        {
+            try
+            {
+                if (Except)
+                {
+                    std::rethrow_exception(Except);
+                }
+            }
+            catch (const std::exception& e)
+            {
+                LogSystem->LogMsg(csp::common::LogLevel::Error, fmt::format("Failed to create object. Exception: {}", e.what()).c_str());
+                Callback(nullptr);
+                return;
+            }
+
+            std::scoped_lock EntitiesLocker(*EntitiesLock);
+
+            ResolveEntityHierarchy(NewObject);
+
+            Entities.Append(NewObject);
+            Objects.Append(NewObject);
+            Callback(NewObject);
+        };
+
+        MultiplayerConnectionInst->GetSignalRConnection()->Invoke(
+            MultiplayerConnectionInst->GetMultiplayerHubMethods().Get(MultiplayerHubMethod::SEND_OBJECT_MESSAGE), Serializer.Get(),
+            LocalSendCallback);
+    };
+
+    // ReSharper disable once CppRedundantCastExpression, this is needed for Android builds to play nice
+    const signalr::value Param1((uint64_t)1ULL);
+    const std::vector Arr { Param1 };
+
+    const signalr::value Params(Arr);
+    MultiplayerConnectionInst->GetSignalRConnection()->Invoke(
+        MultiplayerConnectionInst->GetMultiplayerHubMethods().Get(MultiplayerHubMethod::GENERATE_OBJECT_IDS), Params, LocalIDCallback);
+}
+
+void OnlineRealtimeEngine::CreateEntityFromExisting(SpaceEntity* ExistingEntity, csp::multiplayer::EntityCreatedCallback Callback)
+{
+    const std::function LocalIDCallback
+        = [this, ExistingEntity, Callback, &LogSystem = this->LogSystem](const signalr::value& Result, const std::exception_ptr& Except)
+    {
+        try
+        {
+            if (Except)
+            {
+                std::rethrow_exception(Except);
+            }
+        }
+        catch (const std::exception& e)
+        {
+            LogSystem->LogMsg(csp::common::LogLevel::Error, fmt::format("Failed to generate object ID. Exception: {}", e.what()).c_str());
+            Callback(nullptr);
+            return;
+        }
+
+        const uint64_t FreshID = ParseGenerateObjectIDsResult(Result, *LogSystem);
+        auto* NewObject = new SpaceEntity(*ExistingEntity);
+
+        // Adopt a freshly generated, server-side-unique ID. The copy constructor preserves the
+        // source's Id (so SnapshotCheckpoint round-trips are idempotent when loaded into an
+        // offline engine), but replaying into a live space via CreateEntityFromExisting hits a
+        // "The following objects already exist" conflict from MCS if the source Id collides.
+        NewObject->SetId(FreshID);
+
+        // Ownership transfers to whichever client is creating the entity in this session. The
+        // copy constructor preserves the source's OwnerId (so SnapshotCheckpoint round-trips
+        // keep the original creator), but MCS rejects the message with "Received an object that
+        // is not owned by the specified user" unless OwnerId matches the current client.
+        NewObject->SetOwnerId(MultiplayerConnectionInst->GetClientId());
 
         const mcs::ObjectMessage Message = NewObject->GetStatePatcher()->CreateObjectMessage();
 
@@ -647,9 +726,9 @@ void OnlineRealtimeEngine::OnRequestToSendObject(const signalr::value& Params)
 
 void OnlineRealtimeEngine::OnElectedScopeLeader(const signalr::value& Params)
 {
-    // This could be nullptr if server-side leader election is enabled for the scope within the backend services, but turned off client-side by calling
-    // DisableLeadershipElection. These checks could be removed if the election events were bound inside the ScopeLeadershipManager. However, I
-    // decided to follow our standard pattern of binding to events once, inside the MultiplayerConnection initialization.
+    // This could be nullptr if server-side leader election is enabled for the scope within the backend services, but turned off client-side by
+    // calling DisableLeadershipElection. These checks could be removed if the election events were bound inside the ScopeLeadershipManager. However,
+    // I decided to follow our standard pattern of binding to events once, inside the MultiplayerConnection initialization.
     if (LeaderElectionManager == nullptr)
     {
         return;
@@ -671,10 +750,9 @@ void OnlineRealtimeEngine::OnElectedScopeLeader(const signalr::value& Params)
 
 void OnlineRealtimeEngine::OnVacatedAsScopeLeader(const signalr::value& Params)
 {
-    // This could be nullptr if server-side leader election is enabled for the scope within the backend services, but turned off client-side by calling
-    // DisableLeadershipElection.
-    // These checks could be removed if the election events were bound inside the ScopeLeadershipManager.
-    // However, I decided to follow our standard pattern of binding to events once, inside the MultiplayerConnection initialization.
+    // This could be nullptr if server-side leader election is enabled for the scope within the backend services, but turned off client-side by
+    // calling DisableLeadershipElection. These checks could be removed if the election events were bound inside the ScopeLeadershipManager. However,
+    // I decided to follow our standard pattern of binding to events once, inside the MultiplayerConnection initialization.
     if (LeaderElectionManager == nullptr)
     {
         return;
@@ -811,7 +889,7 @@ ModifiableStatus OnlineRealtimeEngine::IsEntityModifiable(const csp::multiplayer
     // This should definitely be true at this point, but be defensive.
     assert(SpaceEntity->GetStatePatcher() != nullptr);
 
-    // In order to unlock an entity, we need to modify it. 
+    // In order to unlock an entity, we need to modify it.
     // So we need to check if we are about to unlock the entity, and treat it as modifiabe if so, otherwise we cannot unlock a locked entity.
     // Note : This will stop working if we ever add another lock type
     const bool AboutToUnlock = SpaceEntity->GetStatePatcher()->GetDirtyProperties().count(SpaceEntityComponentKey::LockType) > 0;
@@ -1318,6 +1396,133 @@ csp::common::String OnlineRealtimeEngine::SnapshotCheckpoint(const csp::systems:
     std::scoped_lock EntitiesLocker(*EntitiesLock);
     ProcessPendingEntityOperations();
     return CSPSceneDescription::SerializeCheckpoint(*this, SceneData);
+}
+
+void OnlineRealtimeEngine::SetSpaceState(const CSPSceneDescription& SceneDescription, SetSpaceStateCallback Callback)
+{
+    LocalDestroyAllEntities();
+
+    auto DeserializedEntities = SceneDescription.CreateEntities(*this, *LogSystem, *ScriptRunner);
+    const size_t EntityCount = DeserializedEntities.Size();
+
+    // Nothing to do — fire the completion callback immediately. (Invoked on the caller's thread
+    // in this case, which is fine: the caller has done no async work to wait on.)
+    if (EntityCount == 0)
+    {
+        if (Callback)
+        {
+            Callback();
+        }
+        return;
+    }
+
+    // Per-entity creation is async (CreateEntityFromExisting issues a SignalR round-trip and
+    // invokes its callback on the SignalR worker thread). We need shared state whose lifetime
+    // outlives this function so the N async callbacks can coordinate; hence shared_ptr.
+    //
+    // We must NOT hold EntitiesLock across the whole operation. CreateEntityFromExisting's own
+    // SignalR response callback acquires EntitiesLock on the SignalR thread; if we held it on the
+    // main thread for the duration of SetSpaceState, we'd block that thread.
+    //
+    // IDs are NOT stable across the snapshot/replay boundary: MCS assigns fresh server-side IDs
+    // via GENERATE_OBJECT_IDS inside CreateEntityFromExisting. The snapshot's ParentId fields
+    // reference the old (source-space) IDs, which are meaningless in this space. We therefore
+    //   1. Capture each deserialized entity's old Id and old ParentId before sending.
+    //   2. Strip ParentId on the deserialized entity, so the outgoing ObjectMessage has no
+    //      parent (MCS would reject a stale parent reference).
+    //   3. After ALL creations have completed, build an OldId -> NewEntity map and rewrite each
+    //      new entity's ParentId using the map. This enqueues a follow-up patch per entity.
+    struct CompletionState
+    {
+        std::atomic<size_t> EntitiesAdded { 0 };
+        size_t TotalEntities { 0 };
+        SetSpaceStateCallback CompleteCallback;
+        OnlineRealtimeEngine* Engine { nullptr };
+
+        std::mutex MapMutex;
+        std::unordered_map<uint64_t, SpaceEntity*> OldIdToNewEntity;
+        std::unordered_map<uint64_t, uint64_t> OldIdToOldParentId; // only populated when parent existed
+    };
+
+    auto State = std::make_shared<CompletionState>();
+    State->TotalEntities = EntityCount;
+    State->CompleteCallback = std::move(Callback);
+    State->Engine = this;
+
+    for (size_t i = 0; i < EntityCount; ++i)
+    {
+        SpaceEntity* Deserialized = DeserializedEntities[i];
+        const uint64_t OldId = Deserialized->GetId();
+        const csp::common::Optional<uint64_t> OldParent = Deserialized->GetParentId();
+
+        if (OldParent.HasValue())
+        {
+            std::scoped_lock Lk(State->MapMutex);
+            State->OldIdToOldParentId[OldId] = *OldParent;
+        }
+
+        // Strip the stale parent reference before this entity is copied and shipped to MCS.
+        // The copy constructor inside CreateEntityFromExisting pulls ParentId directly from the
+        // source, so clearing it here causes the outgoing ObjectMessage to carry no parent.
+        Deserialized->SetParentIdDirect(csp::common::Optional<uint64_t> {});
+
+        CreateEntityFromExisting(Deserialized,
+            [State, OldId](SpaceEntity* NewEntity)
+            {
+                if (NewEntity != nullptr)
+                {
+                    std::scoped_lock Lk(State->MapMutex);
+                    State->OldIdToNewEntity[OldId] = NewEntity;
+                }
+
+                const size_t Completed = ++State->EntitiesAdded;
+                if (Completed != State->TotalEntities)
+                {
+                    return;
+                }
+
+                // All creations have landed. Remap ParentIds from old -> new. Parents whose
+                // old id isn't in the map (e.g. parent wasn't part of the snapshot) stay null.
+                {
+                    std::scoped_lock MapLk(State->MapMutex);
+                    std::scoped_lock EntitiesLk(*State->Engine->EntitiesLock);
+
+                    for (const auto& [OldEntityId, RemappedEntity] : State->OldIdToNewEntity)
+                    {
+                        auto ParentIt = State->OldIdToOldParentId.find(OldEntityId);
+                        if (ParentIt == State->OldIdToOldParentId.end())
+                        {
+                            continue;
+                        }
+
+                        auto NewParentIt = State->OldIdToNewEntity.find(ParentIt->second);
+                        if (NewParentIt == State->OldIdToNewEntity.end())
+                        {
+                            continue;
+                        }
+
+                        // Update local ParentId immediately so ResolveEntityHierarchy below can
+                        // wire Parent/ChildEntities pointers this frame, and also stage the
+                        // change in the state patcher + queue an update so the new parent
+                        // relationship is replicated to the server on the next patch send.
+                        const uint64_t NewParentId = NewParentIt->second->GetId();
+                        RemappedEntity->SetParentIdDirect(NewParentId, /*CallNotifyingCallback*/ false);
+                        RemappedEntity->SetParentId(NewParentId);
+                        RemappedEntity->QueueUpdate();
+                    }
+
+                    for (SpaceEntity* Entity : *State->Engine->GetAllEntities())
+                    {
+                        State->Engine->ResolveEntityHierarchy(Entity);
+                    }
+                }
+
+                if (State->CompleteCallback)
+                {
+                    State->CompleteCallback();
+                }
+            });
+    }
 }
 
 void OnlineRealtimeEngine::ProcessPendingEntityOperations()

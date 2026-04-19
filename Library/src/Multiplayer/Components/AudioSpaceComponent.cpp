@@ -98,7 +98,7 @@ void AudioSpaceComponent::SetPosition(const csp::common::Vector3& Value) { SetPr
 
 AudioPlaybackState AudioSpaceComponent::GetPlaybackState() const
 {
-    return static_cast<AudioPlaybackState>(GetIntegerProperty(static_cast<uint32_t>(AudioPropertyKeys::PlaybackState)));
+    return static_cast<AudioPlaybackState>(GetIntegerProperty(static_cast<uint32_t>(0)));
 }
 
 void AudioSpaceComponent::SetPlaybackState(AudioPlaybackState Value)

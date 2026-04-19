@@ -134,6 +134,9 @@ public:
     /// @brief Removes the script source and context from the script system.
     void Shutdown();
 
+    /// @brief Returns the IJSScriptRunner used by this script. May be null for default-constructed entities.
+    CSP_NO_EXPORT csp::common::IJSScriptRunner* GetScriptRunner() const { return ScriptRunner; }
+
 private:
     EntityScript(); // Just to appease the generator :(
 

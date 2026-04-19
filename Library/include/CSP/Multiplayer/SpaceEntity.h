@@ -123,6 +123,13 @@ public:
         csp::common::LogSystem* LogSystem, SpaceEntityType Type, uint64_t Id, const csp::common::String& Name, const SpaceTransform& Transform,
         uint64_t OwnerId, csp::common::Optional<uint64_t> ParentId, bool IsTransferable, bool IsPersistent);
 
+    /// @brief Copy constructor. Produces a new SpaceEntity carrying the same identity and transform
+    /// data as Other, owned by Other's EntitySystem. Creates a fresh state patcher, script, and
+    /// script interface against `this` — so the resulting entity is a self-consistent object usable
+    /// in the same engine as the source. Components, hierarchy links (Parent / ChildEntities), and
+    /// user callbacks are NOT copied; the caller is responsible for re-populating those as needed.
+    SpaceEntity(const SpaceEntity& Other);
+
     /// @brief Destroys the SpaceEntity instance.
     ~SpaceEntity();
 
@@ -438,6 +445,11 @@ public:
     /// @brief Setter for the owner ID
     /// @param InOwnerId uint64_t : the owner ID to set
     CSP_NO_EXPORT void SetOwnerId(const uint64_t InOwnerId);
+
+    /// @brief Setter for the entity ID. Intended for internal engine use when re-homing a
+    /// deserialized entity onto a freshly generated server-side ID (e.g. in SetSpaceState).
+    /// @param InId uint64_t : the new ID to assign to this entity.
+    CSP_NO_EXPORT void SetId(const uint64_t InId);
 
     // Called when we're parsing a component from an mcs::ObjectMessage
     CSP_NO_EXPORT void AddComponentFromItemComponentData(uint16_t ComponentId, const csp::multiplayer::mcs::ItemComponentData& ComponentData);

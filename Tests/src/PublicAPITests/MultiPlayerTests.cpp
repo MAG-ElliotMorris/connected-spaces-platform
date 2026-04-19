@@ -1939,6 +1939,154 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotCheckpointToOfflineRo
     LogOut(UserSystem);
 }
 
+// Creates entities in one space via an OnlineRealtimeEngine, snapshots them, then enters a
+// SECOND, empty space with another OnlineRealtimeEngine and hydrates it via SetSpaceState.
+// Using two separate spaces ensures that the destination engine can only receive those entities
+// through SetSpaceState — nothing in the destination space exists on the server. This makes the
+// test a true validation of SetSpaceState: it will fail today against the stub (no-op), and pass
+// unchanged once the real implementation lands. No changes needed post-implementation.
+CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOnlineRoundTripTest)
+{
+    SetRandSeed();
+
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
+    auto* UserSystem = SystemsManager.GetUserSystem();
+    auto* SpaceSystem = SystemsManager.GetSpaceSystem();
+
+    csp::common::String UserId;
+    LogInAsNewTestUser(UserSystem, UserId);
+
+    csp::systems::Space SourceSpace;
+    CreateDefaultTestSpace(SpaceSystem, SourceSpace);
+
+    csp::systems::Space DestSpace;
+    CreateDefaultTestSpace(SpaceSystem, DestSpace);
+
+    // --- Source engine: populate the source space and snapshot it ---
+    bool SourceEntitiesFetched = false;
+    auto SourceFetchCallback = [&SourceEntitiesFetched](int /*NumEntitiesFetched*/) { SourceEntitiesFetched = true; };
+
+    std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> SourceEngine { SystemsManager.MakeOnlineRealtimeEngine() };
+    SourceEngine->SetEntityFetchCompleteCallback(SourceFetchCallback);
+
+    auto [EnterResult1] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, SourceSpace.Id, SourceEngine.get());
+    EXPECT_EQ(EnterResult1.GetResultCode(), csp::systems::EResultCode::Success);
+
+    WaitForCallbackWithUpdate(SourceEntitiesFetched, SourceEngine.get());
+    EXPECT_TRUE(SourceEntitiesFetched);
+
+    SpaceTransform Transform1
+        = { csp::common::Vector3 { 1.0f, 2.0f, 3.0f }, csp::common::Vector4 { 0.0f, 0.0f, 0.0f, 1.0f }, csp::common::Vector3 { 1, 1, 1 } };
+    SpaceTransform Transform2
+        = { csp::common::Vector3 { 4.0f, 5.0f, 6.0f }, csp::common::Vector4 { 0.0f, 0.0f, 0.0f, 1.0f }, csp::common::Vector3 { 2, 2, 2 } };
+
+    auto [Entity1] = AWAIT(SourceEngine.get(), CreateEntity, "Entity1", Transform1, csp::common::Optional<uint64_t> {});
+    ASSERT_NE(Entity1, nullptr);
+
+    auto [Entity2] = AWAIT(SourceEngine.get(), CreateEntity, "Entity2", Transform2, csp::common::Optional<uint64_t> {});
+    ASSERT_NE(Entity2, nullptr);
+
+    SourceEngine->ProcessPendingEntityOperations();
+    ASSERT_EQ(SourceEngine->GetNumEntities(), 2);
+
+    // Parent Entity2 under Entity1 and wait for the UPDATE_FLAGS_PARENT replication to round-trip
+    // so the snapshot captures the parent/child relationship.
+    bool ChildParentUpdated = false;
+    Entity2->SetUpdateCallback(
+        [&ChildParentUpdated](SpaceEntity* /*Entity*/, SpaceEntityUpdateFlags Flags, csp::common::Array<ComponentUpdateInfo> /*ComponentUpdates*/)
+        {
+            if (Flags & SpaceEntityUpdateFlags::UPDATE_FLAGS_PARENT)
+            {
+                ChildParentUpdated = true;
+            }
+        });
+    Entity2->SetParentId(Entity1->GetId());
+    Entity2->QueueUpdate();
+    WaitForCallbackWithUpdate(ChildParentUpdated, SourceEngine.get());
+    EXPECT_TRUE(ChildParentUpdated);
+
+    ASSERT_EQ(Entity2->GetParentEntity(), Entity1);
+    ASSERT_EQ(Entity1->GetChildEntities()->Size(), 1);
+
+    // Capture expected values before exiting — Entity1/Entity2 are owned by SourceEngine and
+    // will be destroyed when we exit its space.
+    csp::common::String ExpectedName1 = Entity1->GetName();
+    csp::common::Vector3 ExpectedPosition1 = Entity1->GetPosition();
+    csp::common::Vector4 ExpectedRotation1 = Entity1->GetRotation();
+    csp::common::Vector3 ExpectedScale1 = Entity1->GetScale();
+
+    csp::common::String ExpectedName2 = Entity2->GetName();
+    csp::common::Vector3 ExpectedPosition2 = Entity2->GetPosition();
+    csp::common::Vector4 ExpectedRotation2 = Entity2->GetRotation();
+    csp::common::Vector3 ExpectedScale2 = Entity2->GetScale();
+
+    csp::common::String SavedJson = SourceEngine->SnapshotEntities();
+
+    auto [ExitResult1] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+
+    // --- Destination engine: enter an EMPTY second space and hydrate via SetSpaceState ---
+    CSPSceneDescription ReloadedDescription { csp::common::List<csp::common::String> { SavedJson } };
+
+    bool DestEntitiesFetched = false;
+    auto DestFetchCallback = [&DestEntitiesFetched](int /*NumEntitiesFetched*/) { DestEntitiesFetched = true; };
+
+    std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> DestEngine { SystemsManager.MakeOnlineRealtimeEngine() };
+    DestEngine->SetEntityFetchCompleteCallback(DestFetchCallback);
+
+    auto [EnterResult2] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, DestSpace.Id, DestEngine.get());
+    EXPECT_EQ(EnterResult2.GetResultCode(), csp::systems::EResultCode::Success);
+
+    // Drain any initial fetch (should be zero entities, but we must wait for the fetch callback
+    // to fire so no in-flight CreateRemotelyRetrievedEntity messages reach the engine after
+    // teardown — that path crashes on shutdown when SpaceEntity tries to construct its state
+    // patcher against an already-destroyed entity system).
+    WaitForCallbackWithUpdate(DestEntitiesFetched, DestEngine.get());
+    EXPECT_TRUE(DestEntitiesFetched);
+    ASSERT_EQ(DestEngine->GetNumEntities(), 0);
+
+    // SetSpaceState is async — creates each entity via a SignalR round-trip and fires the
+    // callback once all per-entity creations have completed.
+    bool SetSpaceStateComplete = false;
+    DestEngine->SetSpaceState(ReloadedDescription, [&SetSpaceStateComplete]() { SetSpaceStateComplete = true; });
+
+    WaitForCallbackWithUpdate(SetSpaceStateComplete, DestEngine.get());
+    EXPECT_TRUE(SetSpaceStateComplete);
+
+    DestEngine->ProcessPendingEntityOperations();
+
+    // The destination space is empty on the server, so any entities present here must have come
+    // from SetSpaceState. This assertion fails against the current stub (actual = 0) and will
+    // pass once SetSpaceState is implemented.
+    ASSERT_EQ(DestEngine->GetNumEntities(), 2);
+
+    // Look up by name — entity order/IDs are not stable across the remap.
+    SpaceEntity* ReloadedParent = DestEngine->FindSpaceEntity(ExpectedName1);
+    SpaceEntity* ReloadedChild = DestEngine->FindSpaceEntity(ExpectedName2);
+    ASSERT_NE(ReloadedParent, nullptr);
+    ASSERT_NE(ReloadedChild, nullptr);
+
+    EXPECT_EQ(ReloadedParent->GetPosition(), ExpectedPosition1);
+    EXPECT_EQ(ReloadedParent->GetRotation(), ExpectedRotation1);
+    EXPECT_EQ(ReloadedParent->GetScale(), ExpectedScale1);
+
+    EXPECT_EQ(ReloadedChild->GetPosition(), ExpectedPosition2);
+    EXPECT_EQ(ReloadedChild->GetRotation(), ExpectedRotation2);
+    EXPECT_EQ(ReloadedChild->GetScale(), ExpectedScale2);
+
+    // Parent/child relationship must survive the round trip. IDs were remapped, so we verify via
+    // GetParentEntity/GetChildEntities pointer identity rather than raw parent ID.
+    EXPECT_EQ(ReloadedParent->GetParentEntity(), nullptr);
+    EXPECT_EQ(ReloadedChild->GetParentEntity(), ReloadedParent);
+    ASSERT_EQ(ReloadedParent->GetChildEntities()->Size(), 1);
+    EXPECT_EQ((*ReloadedParent->GetChildEntities())[0], ReloadedChild);
+
+    auto [ExitResult2] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+
+    DeleteSpace(SpaceSystem, DestSpace.Id);
+    DeleteSpace(SpaceSystem, SourceSpace.Id);
+    LogOut(UserSystem);
+}
+
 namespace
 {
 
