@@ -24,6 +24,7 @@
 #include "RunnableTests/LeaderElection.h"
 #include "RunnableTests/LeaderElectionTick.h"
 #include "RunnableTests/LeaderElectionEvent.h"
+#include "RunnableTests/VerifySnapshotReplication.h"
 #include "SpaceRAII.h"
 #include "Utils.h"
 
@@ -79,6 +80,9 @@ void RunTest(CLIArgs::RunnerSettings Settings, std::chrono::steady_clock::time_p
         break;
     case TestIdentifier::LEADER_ELECTION_EVENT:
         LeaderElectionEvent::RunTest(SpaceRAII.GetRealtimeEngine());
+        break;
+    case TestIdentifier::VERIFY_SNAPSHOT_REPLICATION:
+        VerifySnapshotReplication::RunTest(SpaceRAII.GetRealtimeEngine());
         break;
     default:
         throw Utils::ExceptionWithCode(

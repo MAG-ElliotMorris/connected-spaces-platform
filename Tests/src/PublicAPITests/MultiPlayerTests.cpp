@@ -2087,6 +2087,119 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOnlineRoundTripTest
     LogOut(UserSystem);
 }
 
+// Cross-process verification that SetSpaceState replicates to the server. The driver builds a
+// snapshot in one space, loads it into a TargetSpace via SetSpaceState, and spawns a
+// MultiplayerTestRunner process that joins TargetSpace as a separate user and independently
+// verifies the 2 entities (with the parent/child relationship) are present server-side.
+CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOnlineCrossProcessReplicationTest)
+{
+    SetRandSeed();
+
+    auto& SystemsManager = csp::systems::SystemsManager::Get();
+    auto* UserSystem = SystemsManager.GetUserSystem();
+    auto* SpaceSystem = SystemsManager.GetSpaceSystem();
+
+    auto DriverTestUser = CreateTestUser();
+    auto RunnerTestUser = CreateTestUser();
+
+    csp::common::String DriverUserId;
+    LogIn(UserSystem, DriverUserId, DriverTestUser.Email, GeneratedTestAccountPassword);
+
+    // Runner joins as a different user — spaces must be accessible (not Private, which is the
+    // CreateDefaultTestSpace default). Use Unlisted to match the working cross-process pattern
+    // in CreateAvatarMultiplayerMultiProcessTest.
+    csp::systems::Space SourceSpace;
+    CreateDefaultTestSpace(SpaceSystem, SourceSpace, csp::systems::SpaceAttributes::Unlisted);
+    csp::systems::Space TargetSpace;
+    CreateDefaultTestSpace(SpaceSystem, TargetSpace, csp::systems::SpaceAttributes::Unlisted);
+
+    // --- Build the snapshot in SourceSpace ---
+    std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> SourceEngine { SystemsManager.MakeOnlineRealtimeEngine() };
+    bool SourceFetched = false;
+    SourceEngine->SetEntityFetchCompleteCallback([&SourceFetched](int /*NumFetched*/) { SourceFetched = true; });
+
+    auto [EnterSrc] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, SourceSpace.Id, SourceEngine.get());
+    EXPECT_EQ(EnterSrc.GetResultCode(), csp::systems::EResultCode::Success);
+    WaitForCallbackWithUpdate(SourceFetched, SourceEngine.get());
+
+    SpaceTransform TParent
+        = { csp::common::Vector3 { 1.0f, 2.0f, 3.0f }, csp::common::Vector4 { 0.0f, 0.0f, 0.0f, 1.0f }, csp::common::Vector3 { 1, 1, 1 } };
+    SpaceTransform TChild
+        = { csp::common::Vector3 { 4.0f, 5.0f, 6.0f }, csp::common::Vector4 { 0.0f, 0.0f, 0.0f, 1.0f }, csp::common::Vector3 { 1, 1, 1 } };
+
+    auto [Parent] = AWAIT(SourceEngine.get(), CreateEntity, "ReplicationParent", TParent, csp::common::Optional<uint64_t> {});
+    ASSERT_NE(Parent, nullptr);
+    auto [Child] = AWAIT(SourceEngine.get(), CreateEntity, "ReplicationChild", TChild, csp::common::Optional<uint64_t> {});
+    ASSERT_NE(Child, nullptr);
+    SourceEngine->ProcessPendingEntityOperations();
+
+    bool ChildParented = false;
+    Child->SetUpdateCallback(
+        [&ChildParented](
+            SpaceEntity* /*Entity*/, SpaceEntityUpdateFlags Flags, csp::common::Array<ComponentUpdateInfo> /*ComponentUpdates*/)
+        {
+            if (Flags & SpaceEntityUpdateFlags::UPDATE_FLAGS_PARENT)
+            {
+                ChildParented = true;
+            }
+        });
+    Child->SetParentId(Parent->GetId());
+    Child->QueueUpdate();
+    WaitForCallbackWithUpdate(ChildParented, SourceEngine.get());
+    EXPECT_TRUE(ChildParented);
+
+    csp::common::String SavedJson = SourceEngine->SnapshotEntities();
+
+    auto [ExitSrc] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+
+    // --- Replicate into TargetSpace via SetSpaceState ---
+    CSPSceneDescription Description { csp::common::List<csp::common::String> { SavedJson } };
+
+    std::unique_ptr<csp::multiplayer::OnlineRealtimeEngine> DestEngine { SystemsManager.MakeOnlineRealtimeEngine() };
+    bool DestFetched = false;
+    DestEngine->SetEntityFetchCompleteCallback([&DestFetched](int /*NumFetched*/) { DestFetched = true; });
+
+    auto [EnterDst] = AWAIT_PRE(SpaceSystem, EnterSpace, RequestPredicate, TargetSpace.Id, DestEngine.get());
+    EXPECT_EQ(EnterDst.GetResultCode(), csp::systems::EResultCode::Success);
+    WaitForCallbackWithUpdate(DestFetched, DestEngine.get());
+
+    bool SetSpaceStateComplete = false;
+    DestEngine->SetSpaceState(Description, [&SetSpaceStateComplete]() { SetSpaceStateComplete = true; });
+    WaitForCallbackWithUpdate(SetSpaceStateComplete, DestEngine.get());
+    EXPECT_TRUE(SetSpaceStateComplete);
+
+    DestEngine->ProcessPendingEntityOperations();
+
+    auto [ExitDst] = AWAIT_PRE(SpaceSystem, ExitSpace, RequestPredicate);
+
+    // Driver logs out so the runner process can log in as its own user without interfering.
+    LogOut(UserSystem);
+
+    // --- Spawn the runner to verify server-side state ---
+    MultiplayerTestRunnerProcess Runner
+        = MultiplayerTestRunnerProcess(MultiplayerTestRunner::TestIdentifiers::TestIdentifier::VERIFY_SNAPSHOT_REPLICATION)
+              .SetSpaceId(TargetSpace.Id.c_str())
+              .SetLoginEmail(RunnerTestUser.Email.c_str())
+              .SetPassword(GeneratedTestAccountPassword)
+              .SetTimeoutInSeconds(60)
+              .SetEndpoint(EndpointBaseURI());
+
+    auto ReadyFuture = Runner.ReadyForAssertionsFuture();
+    Runner.StartProcess();
+
+    auto Status = ReadyFuture.wait_for(std::chrono::seconds(90));
+    EXPECT_EQ(Status, std::future_status::ready)
+        << "Runner did not reach READY_FOR_ASSERTIONS — SetSpaceState did not replicate to the server, "
+           "or the runner observed different entities than expected.";
+
+    // --- Cleanup: log back in as driver to delete the spaces ---
+    csp::common::String DriverUserIdForCleanup;
+    LogIn(UserSystem, DriverUserIdForCleanup, DriverTestUser.Email, GeneratedTestAccountPassword);
+    DeleteSpace(SpaceSystem, TargetSpace.Id);
+    DeleteSpace(SpaceSystem, SourceSpace.Id);
+    LogOut(UserSystem);
+}
+
 namespace
 {
 
