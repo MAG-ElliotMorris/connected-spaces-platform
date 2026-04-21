@@ -179,7 +179,7 @@ void FromJson(const csp::json::JsonDeserializer& Deserializer, csp::multiplayer:
     Deserializer.ExitMember();
 }
 
-namespace
+namespace mcs_scene_description_detail
 {
 struct SceneDescriptionDataWrapper
 {
@@ -187,14 +187,14 @@ struct SceneDescriptionDataWrapper
 };
 }
 
-void ToJson(csp::json::JsonSerializer& Serializer, const SceneDescriptionDataWrapper& Obj)
+void ToJson(csp::json::JsonSerializer& Serializer, const mcs_scene_description_detail::SceneDescriptionDataWrapper& Obj)
 {
     Serializer.SerializeMember("objectMessages", Obj.Objects);
 }
 
 void ToJson(csp::json::JsonSerializer& Serializer, const csp::multiplayer::mcs::SceneDescription& Obj)
 {
-    SceneDescriptionDataWrapper DataWrapper { Obj.Objects };
+    mcs_scene_description_detail::SceneDescriptionDataWrapper DataWrapper { Obj.Objects };
     Serializer.SerializeMember("data", DataWrapper);
 }
 

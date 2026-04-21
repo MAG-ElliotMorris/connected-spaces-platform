@@ -151,6 +151,18 @@ public:
     CSP_ASYNC_RESULT virtual void CreateEntity(const csp::common::String& Name, const csp::multiplayer::SpaceTransform& SpaceTransform,
         const csp::common::Optional<uint64_t>& ParentID, csp::multiplayer::EntityCreatedCallback Callback) override;
 
+    /// @brief Insert an already-constructed SpaceEntity into this engine's space by replicating
+    /// it to MCS with a fresh server-side Id and the current client as owner.
+    /// @details Ownership of ExistingEntity is transferred to the engine: on SEND success the
+    /// pointer is appended to the engine's Entities / Objects lists (destroyed later via
+    /// LocalDestroyEntity or engine teardown). On failure the pointer is leaked — callers
+    /// must pass a detached entity (e.g. one released from a unique_ptr in
+    /// CSPSceneDescription::CreateEntities) and must not reference it post-call. Used
+    /// internally by SetSpaceState to replay a scene description into a live online space.
+    /// @param ExistingEntity csp::multiplayer::SpaceEntity* : An owning pointer transferred to
+    /// the engine. Must not already be tracked in Entities/Objects.
+    /// @param Callback csp::multiplayer::EntityCreatedCallback : Fires with the inserted
+    /// SpaceEntity* on success, or nullptr on failure.
     CSP_ASYNC_RESULT virtual void CreateEntityFromExisting(SpaceEntity* ExistingEntity, csp::multiplayer::EntityCreatedCallback Callback);
 
     /// @brief Destroy the specified entity.
@@ -304,7 +316,7 @@ public:
 
     /// @brief Callback type invoked when SetSpaceState has finished creating all entities described
     /// by the scene description (including their round-trip through the server).
-    typedef std::function<void()> SetSpaceStateCallback;
+    typedef std::function<void(bool)> SetSpaceStateCallback;
 
     /// @brief Loads space state from a CSPSceneDescription into this engine.
     /// Mirrors the CSPSceneDescription parameter accepted by the OfflineRealtimeEngine constructor,
@@ -466,6 +478,7 @@ private:
 
     /// Destroy all the entities locally, only used in destruction
     void LocalDestroyAllEntities();
+    void LocalDestroyAllEntitiesExceptAvatars();
 
     void RemoveEntity(SpaceEntity* EntityToRemove);
 

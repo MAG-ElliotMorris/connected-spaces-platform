@@ -2047,7 +2047,7 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOnlineRoundTripTest
     // SetSpaceState is async — creates each entity via a SignalR round-trip and fires the
     // callback once all per-entity creations have completed.
     bool SetSpaceStateComplete = false;
-    DestEngine->SetSpaceState(ReloadedDescription, [&SetSpaceStateComplete]() { SetSpaceStateComplete = true; });
+    DestEngine->SetSpaceState(ReloadedDescription, [&SetSpaceStateComplete](bool /*success*/) { SetSpaceStateComplete = true; });
 
     WaitForCallbackWithUpdate(SetSpaceStateComplete, DestEngine.get());
     EXPECT_TRUE(SetSpaceStateComplete);
@@ -2135,8 +2135,7 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOnlineCrossProcessR
 
     bool ChildParented = false;
     Child->SetUpdateCallback(
-        [&ChildParented](
-            SpaceEntity* /*Entity*/, SpaceEntityUpdateFlags Flags, csp::common::Array<ComponentUpdateInfo> /*ComponentUpdates*/)
+        [&ChildParented](SpaceEntity* /*Entity*/, SpaceEntityUpdateFlags Flags, csp::common::Array<ComponentUpdateInfo> /*ComponentUpdates*/)
         {
             if (Flags & SpaceEntityUpdateFlags::UPDATE_FLAGS_PARENT)
             {
@@ -2164,7 +2163,7 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOnlineCrossProcessR
     WaitForCallbackWithUpdate(DestFetched, DestEngine.get());
 
     bool SetSpaceStateComplete = false;
-    DestEngine->SetSpaceState(Description, [&SetSpaceStateComplete]() { SetSpaceStateComplete = true; });
+    DestEngine->SetSpaceState(Description, [&SetSpaceStateComplete](bool /*success*/) { SetSpaceStateComplete = true; });
     WaitForCallbackWithUpdate(SetSpaceStateComplete, DestEngine.get());
     EXPECT_TRUE(SetSpaceStateComplete);
 
@@ -2188,9 +2187,8 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, OnlineSnapshotToOnlineCrossProcessR
     Runner.StartProcess();
 
     auto Status = ReadyFuture.wait_for(std::chrono::seconds(90));
-    EXPECT_EQ(Status, std::future_status::ready)
-        << "Runner did not reach READY_FOR_ASSERTIONS — SetSpaceState did not replicate to the server, "
-           "or the runner observed different entities than expected.";
+    EXPECT_EQ(Status, std::future_status::ready) << "Runner did not reach READY_FOR_ASSERTIONS — SetSpaceState did not replicate to the server, "
+                                                    "or the runner observed different entities than expected.";
 
     // --- Cleanup: log back in as driver to delete the spaces ---
     csp::common::String DriverUserIdForCleanup;
@@ -2402,7 +2400,7 @@ CSP_PUBLIC_TEST(CSPEngine, MultiplayerTests, EngineeringSpaceToSnapshot)
     // Snapshot a full checkpoint from the online engine
     csp::common::String SavedJson = OnlineEngine->SnapshotCheckpoint(SceneData);
 
-    std::ofstream f("C:\\dev\\USOfficeSaveFromFile2.json");
+    std::ofstream f("C:\\dev\\UsOffice50Entities.json");
     f << SavedJson.c_str();
 
     // Load the checkpoint into an offline engine

@@ -33,12 +33,11 @@ class JsonSerializer;
 class JsonDeserializer;
 } // namespace csp::json
 
-template <typename T> inline void ToJson(csp::json::JsonSerializer& Serializer, T Object);
-template <typename T> inline void ToJson(csp::json::JsonSerializer& Serializer, const T& Object);
-template <typename T> inline void ToJson(csp::json::JsonSerializer& Serializer, const T* Object);
+template <typename T> void ToJson(csp::json::JsonSerializer& Serializer, const T& Object);
+template <typename T> void ToJson(csp::json::JsonSerializer& Serializer, const T* Object);
 
-template <typename T> inline void FromJson(const csp::json::JsonDeserializer& Deserializer, T& Object);
-template <typename T> inline void FromJson(const csp::json::JsonDeserializer& Deserializer, T* Object);
+template <typename T> void FromJson(const csp::json::JsonDeserializer& Deserializer, T& Object);
+template <typename T> void FromJson(const csp::json::JsonDeserializer& Deserializer, T* Object);
 
 namespace csp::json
 {

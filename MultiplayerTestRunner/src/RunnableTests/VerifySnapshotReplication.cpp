@@ -20,7 +20,6 @@
 #include <CSP/Multiplayer/OnlineRealtimeEngine.h>
 #include <CSP/Multiplayer/SpaceEntity.h>
 
-#include <atomic>
 #include <chrono>
 #include <stdexcept>
 #include <string>

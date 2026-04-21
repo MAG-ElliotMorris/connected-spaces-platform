@@ -72,7 +72,12 @@ csp::common::String CSPSceneDescription::SerializeEntities(const csp::common::IR
 
 }
 
-namespace
+// These were previously in an anonymous namespace, but under strict Clang (e.g. WASM builds) that
+// gave the ToJson overloads internal linkage and caused the SerializeValue template to bind to
+// the unspecialized ToJson template declaration (which has no body) rather than to these
+// overloads. Named namespace = external linkage = visible to JsonSerializer::SerializeValue at
+// instantiation time.
+namespace csp_scene_description_detail
 {
 struct FullCheckpointData
 {
@@ -86,15 +91,15 @@ struct FullCheckpointDataWrapper
 };
 }
 
-void ToJson(csp::json::JsonSerializer& Serializer, const FullCheckpointDataWrapper& Obj)
+void ToJson(csp::json::JsonSerializer& Serializer, const csp_scene_description_detail::FullCheckpointDataWrapper& Obj)
 {
     Serializer.SerializeMember("objectMessages", Obj.Checkpoint.Description.Objects);
     ::ToJson(Serializer, Obj.Checkpoint.Data);
 }
 
-void ToJson(csp::json::JsonSerializer& Serializer, const FullCheckpointData& Obj)
+void ToJson(csp::json::JsonSerializer& Serializer, const csp_scene_description_detail::FullCheckpointData& Obj)
 {
-    FullCheckpointDataWrapper Wrapper { Obj };
+    csp_scene_description_detail::FullCheckpointDataWrapper Wrapper { Obj };
     Serializer.SerializeMember("data", Wrapper);
 }
 
@@ -124,7 +129,7 @@ csp::common::String CSPSceneDescription::SerializeCheckpoint(
     const csp::common::IRealtimeEngine& RealtimeEngine, const csp::systems::mcs::SceneData& SceneData)
 {
     auto SceneDescription = BuildSceneDescriptionFromEngine(RealtimeEngine);
-    FullCheckpointData Checkpoint { SceneDescription, SceneData };
+    csp_scene_description_detail::FullCheckpointData Checkpoint { SceneDescription, SceneData };
     return csp::json::JsonSerializer::Serialize(Checkpoint);
 }
 

@@ -424,21 +424,29 @@ void OnlineRealtimeEngine::CreateEntityFromExisting(SpaceEntity* ExistingEntity,
         }
 
         const uint64_t FreshID = ParseGenerateObjectIDsResult(Result, *LogSystem);
-        auto* NewObject = new SpaceEntity(*ExistingEntity);
 
-        // Adopt a freshly generated, server-side-unique ID. The copy constructor preserves the
-        // source's Id (so SnapshotCheckpoint round-trips are idempotent when loaded into an
-        // offline engine), but replaying into a live space via CreateEntityFromExisting hits a
-        // "The following objects already exist" conflict from MCS if the source Id collides.
+        // Reuse ExistingEntity rather than copy-constructing. The SpaceEntity copy ctor
+        // deliberately does NOT copy components or hierarchy (see SpaceEntity.cpp:189-192),
+        // so a copy is a component-less shell — CreateObjectMessageFromSpaceEntity on it
+        // packs an empty component map and the server entity materialises with no model /
+        // transform / script components. ExistingEntity already carries the full component
+        // set populated by NewFromObjectMessage, and we own it (released from a unique_ptr
+        // in CSPSceneDescription::CreateEntities; the caller is expected to transfer
+        // ownership per CreateEntityFromExisting's contract).
+        auto* NewObject = ExistingEntity;
+
+        // Adopt a freshly generated, server-side-unique ID. The snapshot's source Id would
+        // collide with "The following objects already exist" on MCS if replayed unchanged.
         NewObject->SetId(FreshID);
 
-        // Ownership transfers to whichever client is creating the entity in this session. The
-        // copy constructor preserves the source's OwnerId (so SnapshotCheckpoint round-trips
-        // keep the original creator), but MCS rejects the message with "Received an object that
-        // is not owned by the specified user" unless OwnerId matches the current client.
+        // Ownership transfers to this session's client — MCS rejects "Received an object
+        // that is not owned by the specified user" unless OwnerId matches the caller.
         NewObject->SetOwnerId(MultiplayerConnectionInst->GetClientId());
 
-        const mcs::ObjectMessage Message = NewObject->GetStatePatcher()->CreateObjectMessage();
+        // Full-state serializer walks Entity.GetComponents() directly — the correct shape
+        // for a fresh server-side insert. The patcher's CreateObjectMessage() only emits
+        // DirtyComponents, which is empty for a snapshot-deserialized entity.
+        const mcs::ObjectMessage Message = SpaceEntityStatePatcher::CreateObjectMessageFromSpaceEntity(*NewObject);
 
         SignalRSerializer Serializer;
         Serializer.WriteValue(std::vector<mcs::ObjectMessage> { Message });
@@ -916,6 +924,69 @@ void OnlineRealtimeEngine::RetrieveAllEntities(csp::common::EntityFetchCompleteC
 
     GetEntitiesPaged(
         0, ENTITY_PAGE_LIMIT, CreateRetrieveAllEntitiesCallback(0, FetchCompleteCallback)); // Get at most ENTITY_PAGE_LIMIT entities at a time
+}
+
+void OnlineRealtimeEngine::LocalDestroyAllEntitiesExceptAvatars()
+{
+    LockEntityUpdate();
+
+    // Classify BEFORE destroying anything — after `delete Entity` below, any
+    // list still holding that pointer becomes a UAF land mine.
+    csp::common::List<SpaceEntity*> Survivors;
+    csp::common::List<SpaceEntity*> ToDestroy;
+    const auto NumEntities = GetNumEntities();
+    for (size_t i = 0; i < NumEntities; ++i)
+    {
+        SpaceEntity* Entity = GetEntityByIndex(i);
+        if (Entity->FindFirstComponentOfType(ComponentType::AvatarData) != nullptr)
+        {
+            Survivors.Append(Entity);
+        }
+        else
+        {
+            ToDestroy.Append(Entity);
+        }
+    }
+
+    csp::common::List<SpaceEntity*> SurvivingRoots;
+    for (size_t i = 0; i < RootHierarchyEntities.Size(); ++i)
+    {
+        SpaceEntity* E = RootHierarchyEntities[i];
+        if (E->FindFirstComponentOfType(ComponentType::AvatarData) != nullptr)
+        {
+            SurvivingRoots.Append(E);
+        }
+    }
+
+    // Overwrite tracking lists up front, while every pointer is still valid.
+    Entities = Survivors;
+    Objects.Clear(); // avatars are not in Objects by definition
+    RootHierarchyEntities = SurvivingRoots;
+
+    // Now it's safe to delete — no CSP-owned list still references these pointers.
+    for (size_t i = 0; i < ToDestroy.Size(); ++i)
+    {
+        SpaceEntity* Entity = ToDestroy[i];
+
+        if (Entity->GetIsTransient() && Entity->GetOwnerId() == GetMultiplayerConnectionInstance()->GetClientId())
+        {
+            DestroyEntity(Entity, [](bool /*Ok*/) {});
+        }
+        else
+        {
+            LocalDestroyEntity(Entity);
+        }
+
+        delete Entity;
+    }
+
+    // PendingRemoves holds the pointers we just freed — critical to drop.
+    // PendingAdds/IncomingUpdates drop is a minor transient hiccup.
+    PendingAdds->clear();
+    PendingRemoves->clear();
+    PendingIncomingUpdates->clear();
+
+    UnlockEntityUpdate();
 }
 
 void OnlineRealtimeEngine::LocalDestroyAllEntities()
@@ -1400,7 +1471,7 @@ csp::common::String OnlineRealtimeEngine::SnapshotCheckpoint(const csp::systems:
 
 void OnlineRealtimeEngine::SetSpaceState(const CSPSceneDescription& SceneDescription, SetSpaceStateCallback Callback)
 {
-    LocalDestroyAllEntities();
+    LocalDestroyAllEntitiesExceptAvatars();
 
     auto DeserializedEntities = SceneDescription.CreateEntities(*this, *LogSystem, *ScriptRunner);
     const size_t EntityCount = DeserializedEntities.Size();
@@ -1411,7 +1482,7 @@ void OnlineRealtimeEngine::SetSpaceState(const CSPSceneDescription& SceneDescrip
     {
         if (Callback)
         {
-            Callback();
+            Callback(true);
         }
         return;
     }
@@ -1517,9 +1588,19 @@ void OnlineRealtimeEngine::SetSpaceState(const CSPSceneDescription& SceneDescrip
                     }
                 }
 
+                // CreateEntityFromExisting appends locally but never notifies the
+                // RemoteEntityCreatedCallback path — that's reserved for entities arriving
+                // from the server. Clients rely on that callback to hook new entities into
+                // their renderer / ECS, so without this the active tab sees nothing until
+                // a reload. Fire it here, once, for every entity we created in this pass.
+                for (const auto& [OldEntityId, NewerEntity] : State->OldIdToNewEntity)
+                {
+                    FireRemoteSpaceEntityCreatedCallback(NewerEntity, State->Engine->RemoteSpaceEntityCreatedCallback, *State->Engine->LogSystem);
+                }
+
                 if (State->CompleteCallback)
                 {
-                    State->CompleteCallback();
+                    State->CompleteCallback(true);
                 }
             });
     }

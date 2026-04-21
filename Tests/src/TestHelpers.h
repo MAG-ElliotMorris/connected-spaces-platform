@@ -216,14 +216,14 @@ inline const csp::ClientUserAgent& GetDefaultClientUserAgentInfo()
 inline void InitialiseFoundationWithUserAgentInfo(
     const csp::common::String& EndpointRootURI, SignalRConnectionMock* SignalRMock = nullptr, csp::web::WebClient* WebClient = nullptr)
 {
-    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO_TESTS", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, nullptr);
+    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, nullptr);
 }
 
 inline void InitialiseFoundationWithUserAgentInfoAndFeatureFlags(const csp::common::String& EndpointRootURI,
     const csp::common::Optional<csp::common::Array<csp::FeatureFlag>>& FeatureFlags, SignalRConnectionMock* SignalRMock = nullptr,
     csp::web::WebClient* WebClient = nullptr)
 {
-    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO_TESTS", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, FeatureFlags);
+    csp::CSPFoundation::InitialiseWithInject(EndpointRootURI, "OKO", GetDefaultClientUserAgentInfo(), SignalRMock, WebClient, FeatureFlags);
 }
 
 inline void WaitForCallback(bool& CallbackCalled, int MaxTextTimeSeconds = 20)
