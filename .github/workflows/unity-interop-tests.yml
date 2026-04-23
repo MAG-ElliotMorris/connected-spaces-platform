@@ -24,6 +24,18 @@ jobs:
           repository: magnopus-opensource/connected-spaces-platform-unity
           path: connected-spaces-platform-unity
 
+      - name: Probe TeamCity auth
+        shell: bash
+        env:
+          TC_TOKEN: ${{ secrets.TEAMCITY_TOKEN }}
+        run: |
+          echo "--- /app/rest/server"
+          curl -sS -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $TC_TOKEN" \
+            "https://magnopus.teamcity.com/app/rest/server"
+          echo "--- /app/rest/buildTypes/id:Olympus_Foundation_X64_DebugDLLCSharp"
+          curl -sS -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $TC_TOKEN" \
+            "https://magnopus.teamcity.com/app/rest/buildTypes/id:Olympus_Foundation_X64_DebugDLLCSharp"
+
       - name: Download CSP artifacts from TeamCity
         shell: bash
         env:
