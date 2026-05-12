@@ -150,19 +150,19 @@ public:
     /// @return SpaceTransform.
     const SpaceTransform& GetTransform() const;
 
-    /// @brief Get the Global SpaceTransform of the SpaceEntity, derived from it's parent.
+    /// @brief Get the Global SpaceTransform of the SpaceEntity.
     /// @return SpaceTransform.
     SpaceTransform GetGlobalTransform() const;
 
-    /// @brief Get the position of the SpaceEntity, in world space.
+    /// @brief Get the position of the SpaceEntity.
     /// @return Position.
     const csp::common::Vector3& GetPosition() const;
 
-    /// @brief Get the Global position of the SpaceEntity, in world space, derived from it's parent.
+    /// @brief Get the Global position of the SpaceEntity.
     /// @return Position.
     csp::common::Vector3 GetGlobalPosition() const;
 
-    /// @brief Set the position of the SpaceEntity, in world space.
+    /// @brief Set the position of the SpaceEntity.
     /// @param Value csp::common::Vector3 : The position to set.
     /// @return Whether a new value was set, may fail if not modifiable, or if a dirty property is already set to this value.
     bool SetPosition(const csp::common::Vector3& Value);
@@ -171,7 +171,7 @@ public:
     /// @return Rotation.
     const csp::common::Vector4& GetRotation() const;
 
-    /// @brief Get the Global rotation of the SpaceEntity, derived from it's parent.
+    /// @brief Get the Global rotation of the SpaceEntity.
     /// @return Rotation.
     csp::common::Vector4 GetGlobalRotation() const;
 
@@ -184,7 +184,7 @@ public:
     /// @return Scale.
     const csp::common::Vector3& GetScale() const;
 
-    /// @brief Get the Global scale of the SpaceEntity, derived from it's parent.
+    /// @brief Get the Global scale of the SpaceEntity.
     /// @return Scale.
     csp::common::Vector3 GetGlobalScale() const;
 
