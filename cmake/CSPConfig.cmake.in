@@ -31,6 +31,39 @@ if(NOT CSP_BUILT_SHARED)
   if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     find_dependency(Poco)
   endif()
+
+  # OpenUSD. Consumers must set pxr_DIR (and TBB_DIR, which pxrConfig.cmake
+  # resolves via find_dependency) to the openusd Conan package, exactly as this
+  # repository's conanfile.py does in generate() - pxrConfig.cmake lives at the
+  # root of a USD install prefix, not under lib/cmake, so it is not found by
+  # CMAKE_PREFIX_PATH alone.
+  if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    if(NOT pxr_DIR)
+      message(FATAL_ERROR
+        "CSP was built against OpenUSD, so consuming it requires pxr_DIR to be "
+        "set to the openusd Conan package folder. Add "
+        "self.requires(\"openusd/26.11\") to your conanfile and set pxr_DIR / "
+        "TBB_DIR in generate(); see recipes/openusd/README.md in the CSP repo.")
+    endif()
+    find_dependency(pxr)
+
+    # find_dependency() above loads pxrTargets.cmake fresh in *this* project, so
+    # USD's imported targets arrive with their INTERFACE_LINK_OPTIONS intact:
+    # one --embed-file per resource file, roughly a hundred arguments each
+    # carrying an absolute path. Inheriting those overflows the Windows
+    # command-line limit at the consumer's final link ("The command line is too
+    # long"), and they are redundant besides - csp-lib already exports a single
+    # directory-level embed that mounts the same tree at /usd.
+    #
+    # Clearing is safe: --embed-file entries are the only thing USD puts in that
+    # property. The CSP build tree does the same thing in its root CMakeLists;
+    # this covers everyone consuming the installed package.
+    foreach(_csp_usd_lib IN LISTS PXR_LIBRARIES)
+      if(TARGET ${_csp_usd_lib})
+        set_property(TARGET ${_csp_usd_lib} PROPERTY INTERFACE_LINK_OPTIONS "")
+      endif()
+    endforeach()
+  endif()
 endif()
 
 include("${CMAKE_CURRENT_LIST_DIR}/CSPTargets.cmake")

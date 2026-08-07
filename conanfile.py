@@ -33,6 +33,13 @@ class CSP(ConanFile):
         self.requires("gtest/1.11.0")
         self.requires("sole/1.0.4")
 
+        # OpenUSD is currently only wired up for Emscripten, as the wasm tree
+        # produced by USD's build_usd.py is the only one we package so far.
+        # This is a prebuilt package that has to be created locally; see
+        # recipes/openusd/README.md.
+        if self.settings.os == "Emscripten":
+            self.requires("openusd/26.11")
+
         # We use the Emscripten WebSockets API for Emscripten
         if self.settings.os != "Emscripten":
             # Override Pocos default OpenSSL to use OpenSSL 1.1
@@ -86,6 +93,19 @@ class CSP(ConanFile):
 
         # Generate conan presets file
         tc.user_presets_path = 'ConanPresets.json'
+
+        # The openusd package deliberately does not expose itself through
+        # CMakeDeps, because we consume USD's own pxrConfig.cmake instead of
+        # restating its link line (which depends on -Wl,--whole-archive to keep
+        # USD's static schema registrations alive). That means we have to point
+        # CMake at the package ourselves. pxrConfig.cmake sits at the root of a
+        # USD install prefix rather than under lib/cmake, and it resolves TBB
+        # via find_dependency(TBB CONFIG), so both variables are needed.
+        # See recipes/openusd/README.md.
+        if self.settings.os == "Emscripten":
+            usd_root = self.dependencies["openusd"].package_folder.replace("\\", "/")
+            tc.cache_variables["pxr_DIR"] = usd_root
+            tc.cache_variables["TBB_DIR"] = f"{usd_root}/lib/cmake/TBB"
 
         tc.generate()
         

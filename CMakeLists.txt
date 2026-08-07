@@ -53,6 +53,95 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
   find_package(Poco REQUIRED)
 endif()
 
+# OpenUSD. Comes from the openusd Conan package, which wraps a tree built by
+# USD's own build_usd.py; pxr_DIR/TBB_DIR are set for us by conanfile.py.
+# We use USD's own config rather than a Conan-generated one because its imported
+# targets wrap each archive in -Wl,--whole-archive, which USD needs in order to
+# keep the static initialisers that register its schemas and plugins.
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  find_package(pxr CONFIG REQUIRED)
+
+  # USD's plugin resources (plugInfo.json plus the per-library resources/
+  # directories holding generatedSchema.usda) are runtime data, not link inputs.
+  # Natively USD locates them relative to its own shared libraries; under wasm
+  # there is no such location, so whatever produces the final module has to
+  # place them in the virtual filesystem and point PXR_PLUGINPATH_NAME at them.
+  # Derive the path from the found package rather than from Conan, so this keeps
+  # working however USD was located.
+  get_filename_component(CSP_USD_PREFIX "${PXR_INCLUDE_DIRS}" DIRECTORY)
+  set(CSP_USD_PLUGIN_RESOURCES "${CSP_USD_PREFIX}/lib/usd")
+
+  # Where those resources are mounted in the module's virtual filesystem. Not a
+  # free choice: USD's own embed rules use /usd, and its plugInfo.json paths are
+  # relative to it, so anything reading them has to agree.
+  set(CSP_USD_PLUGIN_PATH "/usd")
+
+  if(NOT EXISTS "${CSP_USD_PLUGIN_RESOURCES}/plugInfo.json")
+    message(FATAL_ERROR
+      "Found USD at '${CSP_USD_PREFIX}' but its plugin resources are missing "
+      "('${CSP_USD_PLUGIN_RESOURCES}/plugInfo.json'). USD would link and then "
+      "fail on the first UsdStage call. See recipes/openusd/README.md.")
+  endif()
+
+  # USD's imported targets each wrap themselves in
+  # -Wl,--whole-archive ... -Wl,--no-whole-archive. CMake de-duplicates those
+  # repeated flags, collapsing all of them into a single *empty* pair, so every
+  # USD archive ends up linked normally. That is not a cosmetic problem: USD
+  # registers its schemas, file formats and asset resolvers through static
+  # initialisers that nothing references directly, so the linker discards them.
+  # The result links cleanly and then fails at runtime with errors like
+  # "Failed to manufacture asset resolver Sdf_UsdzResolver from plugin sdf" and
+  # "Failed to create primSpec", because plugInfo.json still advertises types
+  # whose C++ registration never made it into the module.
+  #
+  # CMake's LINK_LIBRARY:WHOLE_ARCHIVE feature cannot express this: USD's
+  # imported targets reference each other plainly in their own
+  # INTERFACE_LINK_LIBRARIES, and CMake refuses to link an item both with a
+  # feature and without one ("Impossible to link target ... the link item 'arch'
+  # ... has already occurred with the feature 'WHOLE_ARCHIVE'").
+  #
+  # So build one explicit group by archive path and pass it as a link *option*,
+  # which bypasses CMake's link-item bookkeeping entirely. A single pair also
+  # survives flag de-duplication, where USD's 33 individual pairs did not.
+  #
+  # Covers every USD library rather than just the ones CSP calls into: the
+  # plugInfo.json USD embeds advertises all of them, and PlugRegistry will try to
+  # manufacture types from any of them, so a subset leaves those lookups failing.
+  # All of USD therefore lands in the final module; trimming it later means
+  # narrowing the library set and the embedded plugInfo together.
+  set(CSP_USD_WHOLE_ARCHIVE_GROUP "-Wl,--whole-archive")
+
+  foreach(_csp_usd_lib IN LISTS PXR_LIBRARIES)
+    if(NOT PXR_${_csp_usd_lib}_LIBRARY)
+      message(FATAL_ERROR "pxrConfig.cmake reported no location for USD library '${_csp_usd_lib}'.")
+    endif()
+
+    string(APPEND CSP_USD_WHOLE_ARCHIVE_GROUP " ${PXR_${_csp_usd_lib}_LIBRARY}")
+  endforeach()
+
+  string(APPEND CSP_USD_WHOLE_ARCHIVE_GROUP " -Wl,--no-whole-archive")
+
+  # SHELL: keeps CMake from splitting or de-duplicating the group.
+  set(CSP_USD_LINK_OPTION "SHELL:${CSP_USD_WHOLE_ARCHIVE_GROUP}")
+
+  # USD carries one --embed-file per resource file in the INTERFACE_LINK_OPTIONS
+  # of each of its 33 imported targets - roughly a hundred arguments, each with an
+  # absolute path into the Conan cache. Linking all of USD that way overflows the
+  # Windows command-line limit outright ("The command line is too long").
+  #
+  # Replace them with a single directory-level embed, which yields the identical
+  # /usd layout. Clearing INTERFACE_LINK_OPTIONS is safe: --embed-file entries are
+  # the only thing USD puts there.
+  foreach(_csp_usd_lib IN LISTS PXR_LIBRARIES)
+    set_property(TARGET ${_csp_usd_lib} PROPERTY INTERFACE_LINK_OPTIONS "")
+  endforeach()
+
+  # --embed-file bakes the resources into the .wasm, keeping the module
+  # self-contained. A browser-facing build may prefer --preload-file, which moves
+  # them into a separate .data file that can be cached independently.
+  set(CSP_USD_EMBED_OPTION "SHELL:--embed-file ${CSP_USD_PLUGIN_RESOURCES}@${CSP_USD_PLUGIN_PATH}")
+endif()
+
 # Vendored libs
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/signalrclient)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/ThirdParty/quickjs)
@@ -144,6 +233,37 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
       Poco::Poco
       Poco::Net
   )
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+  # PRIVATE, as USD does not appear in CSP's public headers. csp-lib is static
+  # for wasm, so CMake still records these on the exported target as
+  # $<LINK_ONLY:...> and the downstream bindings link resolves them - which is
+  # why CSPConfig.cmake.in has to find_dependency(pxr). Same arrangement as
+  # tinyspline/glm/msgpack.
+  #
+  # Linked plainly for their usage requirements - include dirs, PXR_STATIC, and
+  # the ~33 --embed-file entries USD carries in INTERFACE_LINK_OPTIONS to mount
+  # its plugin resources at /usd. The archives are additionally forced in whole
+  # by CSP_USD_LINK_OPTION below; the plain references here resolve nothing extra
+  # afterwards, since every symbol is already defined by then.
+  target_link_libraries(csp-lib
+    PRIVATE
+      ${PXR_LIBRARIES}
+  )
+
+  # PUBLIC: both of these are needed at the final link of whatever consumes CSP,
+  # so they have to propagate through the export to the downstream bindings module.
+  target_link_options(csp-lib PUBLIC
+    "${CSP_USD_LINK_OPTION}"
+    "${CSP_USD_EMBED_OPTION}"
+  )
+
+  # USD is built against Emscripten's zlib port rather than a vendored libz, and
+  # nothing in its install tree provides those symbols, so the flag has to reach
+  # the final link of anything that pulls USD in. PUBLIC so it propagates
+  # through the export to the downstream bindings module.
+  target_link_options(csp-lib PUBLIC --use-port=zlib)
 endif()
 
 set(TINYSPLINE_BUILD_TESTS OFF)
@@ -280,6 +400,22 @@ endif()
 
   if(CSP_BUILD_LEGACY_EMSCRIPTEN AND EMSCRIPTEN)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/LegacyEmscriptenWrapper)
+  endif()
+
+# OpenUSD runtime smoke test --------------------------------------
+
+  option(CSP_BUILD_USD_SMOKE "Build the OpenUSD wasm runtime smoke test" OFF)
+
+  if(CSP_BUILD_USD_SMOKE)
+    # CMAKE_SYSTEM_NAME rather than EMSCRIPTEN: Conan invokes emcc directly
+    # instead of going through Emscripten's CMake toolchain file, so the
+    # EMSCRIPTEN variable is never set in this build. The rest of this file
+    # tests CMAKE_SYSTEM_NAME for the same reason.
+    if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+      message(FATAL_ERROR "CSP_BUILD_USD_SMOKE is Emscripten-only; OpenUSD is currently only wired up for wasm.")
+    endif()
+
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Tools/UsdSmoke)
   endif()
 
 # Install ---------------------------------------------------------
